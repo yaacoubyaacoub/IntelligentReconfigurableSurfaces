@@ -5,6 +5,9 @@ import math
 import matplotlib.pyplot as plt
 import scipy.constants as constants
 import scipy.optimize as optimize
+from scipy.fft import fft2, ifft2
+from tqdm import tqdm
+import random
 
 
 def cartesian_to_spherical(cartesian_coords):
@@ -100,13 +103,190 @@ def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, elem
     return dphi_dx, dphi_dy
 
 
-# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy)
+# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy) using Finite Difference Method
 def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y, f_init=0):
     # Integrate along the x-axis
-    phase_shifts_x_y0 = np.cumsum(dphi_dx * delta_x, axis=0) + f_init
+    phase_shifts_x_y0 = np.cumsum(dphi_dx * delta_x, axis=1)
 
     # Integrate along the y-axis
-    phase_shifts = np.cumsum(dphi_dy * delta_y, axis=1) + phase_shifts_x_y0
+    phase_shifts_x0_y = np.cumsum(dphi_dy * delta_y, axis=0)
+
+    phase_shifts = phase_shifts_x_y0 + phase_shifts_x0_y
+
+    dphi_dx_recovered = np.gradient(phase_shifts, axis=1) / delta_x
+    abs_diffdx = np.abs(dphi_dx - dphi_dx_recovered)
+    maedx = np.mean(abs_diffdx)
+    msedx = np.mean(abs_diffdx ** 2)
+    dphi_dy_recovered = np.gradient(phase_shifts, axis=0) / delta_y
+    abs_diffdy = np.abs(dphi_dy - dphi_dy_recovered)
+    maedy = np.mean(abs_diffdy)
+    msedy = np.mean(abs_diffdy ** 2)
+    print("finite_difference_method")
+    print("mae_dphi_dx", maedx)
+    print("mse_dphi_dx", msedx)
+    print("mae_dphi_dy", maedy)
+    print("mse_dphi_dy", msedy)
+    print()
+
+    phase_shifts = np.mod(phase_shifts + np.pi, 2 * np.pi) - np.pi
+
+    return phase_shifts
+
+
+# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy)
+def calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta_x, delta_y):
+    dphi2_dxdy = np.zeros(dphi_dx.shape)
+
+    for y in range(dphi_dx.shape[0]):
+        for x in range(dphi_dx.shape[1]):
+            count = 0
+            term1, term2, term3, term4 = 0, 0, 0, 0
+            if y != dphi_dx.shape[0] - 1:
+                count += 1
+                term1 = (dphi_dx[y + 1, x] - dphi_dx[y, x]) / delta_y
+            if y != 0:
+                count += 1
+                term2 = (dphi_dx[y, x] - dphi_dx[y - 1, x]) / delta_y
+            if x != dphi_dy.shape[1] - 1:
+                count += 1
+                term3 = (dphi_dy[y, x + 1] - dphi_dy[y, x]) / delta_x
+            if x != 0:
+                count += 1
+                term4 = (dphi_dy[y, x] - dphi_dy[y, x - 1]) / delta_x
+
+            dphi2_dxdy[y, x] = (term1 + term2 + term3 + term4) / count
+
+    phase_shifts = np.cumsum(np.cumsum(dphi2_dxdy * delta_y, axis=0) * delta_x, axis=1)
+
+    dphi_dx_recovered = np.gradient(phase_shifts, axis=1) / delta_x
+    abs_diffdx = np.abs(dphi_dx - dphi_dx_recovered)
+    maedx = np.mean(abs_diffdx)
+    msedx = np.mean(abs_diffdx ** 2)
+    dphi_dy_recovered = np.gradient(phase_shifts, axis=0) / delta_y
+    abs_diffdy = np.abs(dphi_dy - dphi_dy_recovered)
+    maedy = np.mean(abs_diffdy)
+    msedy = np.mean(abs_diffdy ** 2)
+    print("averaging_method")
+    print("mae_dphi_dx", maedx)
+    print("mse_dphi_dx", msedx)
+    print("mae_dphi_dy", maedy)
+    print("mse_dphi_dy", msedy)
+    print()
+
+    phase_shifts = np.mod(phase_shifts + np.pi, 2 * np.pi) - np.pi
+
+    return phase_shifts
+
+
+# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy) with random walk
+def calculate_phase_shifts_from_gradients2(dphi_dx, dphi_dy, delta_x, delta_y):
+    phase_shifts = np.zeros(dphi_dx.shape)
+
+    for _ in tqdm(range(100)):
+        curr_x, curr_y = 0, 0
+
+        visited = np.zeros(dphi_dx.shape, dtype=bool)
+        visited[curr_y, curr_x] = True
+
+        while not np.all(visited):
+
+            new_direction = random.randint(1, 4)
+
+            if new_direction == 1 and curr_x < phase_shifts.shape[1] - 1:
+                # phase_shifts[curr_y, curr_x + 1] = phase_shifts[curr_y, curr_x] + delta_x * dphi_dx[curr_y, curr_x]
+                if phase_shifts[curr_y, curr_x + 1] != 0:
+                    phase_shifts[curr_y, curr_x + 1] = (phase_shifts[curr_y, curr_x + 1] + phase_shifts[
+                        curr_y, curr_x] + delta_x * dphi_dx[curr_y, curr_x]) / 2
+                else:
+                    phase_shifts[curr_y, curr_x + 1] = phase_shifts[curr_y, curr_x] + delta_x * dphi_dx[curr_y, curr_x]
+                curr_x += 1
+            elif new_direction == 2 and curr_x > 0:
+                # phase_shifts[curr_y, curr_x - 1] = phase_shifts[curr_y, curr_x] - delta_x * dphi_dx[curr_y, curr_x]
+                if phase_shifts[curr_y, curr_x - 1] != 0:
+                    phase_shifts[curr_y, curr_x - 1] = (phase_shifts[curr_y, curr_x - 1] + phase_shifts[
+                        curr_y, curr_x] - delta_x * dphi_dx[curr_y, curr_x]) / 2
+                else:
+                    phase_shifts[curr_y, curr_x - 1] = phase_shifts[curr_y, curr_x] - delta_x * dphi_dx[curr_y, curr_x]
+                curr_x -= 1
+            elif new_direction == 3 and curr_y < phase_shifts.shape[0] - 1:
+                # phase_shifts[curr_y + 1, curr_x] = phase_shifts[curr_y, curr_x] + delta_y * dphi_dy[curr_y, curr_x]
+                if phase_shifts[curr_y + 1, curr_x] != 0:
+                    phase_shifts[curr_y + 1, curr_x] = (phase_shifts[curr_y + 1, curr_x] + phase_shifts[
+                        curr_y, curr_x] + delta_y * dphi_dy[curr_y, curr_x]) / 2
+                else:
+                    phase_shifts[curr_y + 1, curr_x] = phase_shifts[curr_y, curr_x] + delta_y * dphi_dy[curr_y, curr_x]
+                curr_y += 1
+            elif new_direction == 4 and curr_y > 0:
+                # phase_shifts[curr_y - 1, curr_x] = phase_shifts[curr_y, curr_x] - delta_y * dphi_dy[curr_y, curr_x]
+                if phase_shifts[curr_y - 1, curr_x] != 0:
+                    phase_shifts[curr_y - 1, curr_x] = (phase_shifts[curr_y - 1, curr_x] + phase_shifts[
+                        curr_y, curr_x] - delta_y * dphi_dy[curr_y, curr_x]) / 2
+                else:
+                    phase_shifts[curr_y - 1, curr_x] = phase_shifts[curr_y, curr_x] - delta_y * dphi_dy[curr_y, curr_x]
+                curr_y -= 1
+
+            if not visited[curr_y, curr_x]:
+                visited[curr_y, curr_x] = True
+
+    dphi_dx_recovered = np.gradient(phase_shifts, axis=1) / delta_x
+    abs_diffdx = np.abs(dphi_dx - dphi_dx_recovered)
+    maedx = np.mean(abs_diffdx)
+    msedx = np.mean(abs_diffdx ** 2)
+    dphi_dy_recovered = np.gradient(phase_shifts, axis=0) / delta_y
+    abs_diffdy = np.abs(dphi_dy - dphi_dy_recovered)
+    maedy = np.mean(abs_diffdy)
+    msedy = np.mean(abs_diffdy ** 2)
+    print("random_walk_method")
+    print("mae_dphi_dx", maedx)
+    print("mse_dphi_dx", msedx)
+    print("mae_dphi_dy", maedy)
+    print("mse_dphi_dy", msedy)
+    print()
+
+    phase_shifts = np.mod(phase_shifts + np.pi, 2 * np.pi) - np.pi
+
+    return phase_shifts
+
+
+def fft_poisson_solver(dphi_dx, dphi_dy, delta_x, delta_y):
+    # Compute the Laplacian from the partial derivatives
+    laplacian = (np.gradient(dphi_dx, delta_y, axis=0) + np.gradient(dphi_dy, delta_x, axis=1))
+
+    # Perform 2D FFT on the Laplacian
+    laplacian_fft = fft2(laplacian)
+
+    # Compute the frequency components
+    k_y, k_x = np.mgrid[0:dphi_dx.shape[0], 0:dphi_dx.shape[1]]
+    k_y = k_y / dphi_dx.shape[0]
+    k_x = k_x / dphi_dx.shape[1]
+    k_y[k_y > 0.5] -= 1
+    k_x[k_x > 0.5] -= 1
+    k_y *= 2 * np.pi / delta_y
+    k_x *= 2 * np.pi / delta_x
+
+    # Divide by the frequency components' squares (excluding the zero-frequency component)
+    k2 = k_x ** 2 + k_y ** 2
+    k2[0, 0] = 1  # Avoid division by zero
+    phase_shifts_fft = laplacian_fft / k2
+    phase_shifts_fft[0, 0] = 0  # Set zero-frequency component to zero
+
+    # Perform inverse 2D FFT to obtain the phase shift function
+    phase_shifts = np.real(ifft2(phase_shifts_fft))
+
+    dphi_dx_recovered = np.gradient(phase_shifts, axis=1) / delta_x
+    abs_diffdx = np.abs(dphi_dx - dphi_dx_recovered)
+    maedx = np.mean(abs_diffdx)
+    msedx = np.mean(abs_diffdx ** 2)
+    dphi_dy_recovered = np.gradient(phase_shifts, axis=0) / delta_y
+    abs_diffdy = np.abs(dphi_dy - dphi_dy_recovered)
+    maedy = np.mean(abs_diffdy)
+    msedy = np.mean(abs_diffdy ** 2)
+    print("fft_poisson_solver_method")
+    print("mae_dphi_dx", maedx)
+    print("mse_dphi_dx", msedx)
+    print("mae_dphi_dy", maedy)
+    print("mse_dphi_dy", msedy)
+    print()
 
     phase_shifts = np.mod(phase_shifts + np.pi, 2 * np.pi) - np.pi
 
@@ -209,6 +389,7 @@ def reflected_signal(phase_shifts, surface_size, element_size, element_spacing, 
 
 
 def show_phase_shift_plots(phase_shifts):
+    plt.figure()
     plt.imshow(phase_shifts, cmap='viridis', origin='lower')
     plt.colorbar(label='Phase Shift (deg)')
     plt.title("Phase Shifts")
@@ -287,7 +468,7 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
 def main():
     # Parameters
     transmitter = np.array([1, 0.5, 10.5])  # Position of the transmitter
-    receiver = np.array([1.5, 2.2, 5.5])  # Position of the receiver
+    receiver = np.array([1.5, 1.2, 5.5])  # Position of the receiver
     ni = 1  # Refractive index
     frequency = 2.4e9  # Frequency in Hz
     c = 3e8  # Speed of light in m/s
@@ -305,6 +486,9 @@ def main():
 
     delta = element_size + element_spacing
     phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
+    phase_shifts1 = calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta, delta)
+    phase_shifts2 = calculate_phase_shifts_from_gradients2(dphi_dx, dphi_dy, delta, delta)
+    # phase_shifts3 = fft_poisson_solver(dphi_dx, dphi_dy, delta, delta)
 
     reflected_amplitude, reflected_phase, capacitance_matrix = reflected_signal(phase_shifts, surface_size,
                                                                                 element_size, element_spacing,
@@ -324,6 +508,10 @@ def main():
     print(capacitance_matrix)
 
     show_phase_shift_plots(np.degrees(phase_shifts))
+    show_phase_shift_plots(np.degrees(phase_shifts1))
+    show_phase_shift_plots(np.degrees(phase_shifts2))
+    # show_phase_shift_plots(np.degrees(phase_shifts3))
+
     # draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts)
     plt.show()
 

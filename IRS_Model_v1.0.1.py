@@ -109,7 +109,7 @@ def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, elem
 
 
 # Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy) using Finite Difference Method
-def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y, f_init=0):
+def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
     # Integrate along the x-axis
     phase_shifts_x_y0 = np.cumsum(dphi_dx * delta_x, axis=1)
 
@@ -308,7 +308,7 @@ def main():
     # incident_wave_n = incident_amplitude * np.cos(w * t + incident_phase)
 
     ni = 1  # Refractive index
-    surface_size = (1000, 1000)  # Metasurface dimensions (M, N)
+    surface_size = (50, 50)  # Metasurface dimensions (M, N)
     element_size = wavelength / 8
     element_spacing = wavelength / 8  # Element spacing in x and y
     delta = element_size + element_spacing
