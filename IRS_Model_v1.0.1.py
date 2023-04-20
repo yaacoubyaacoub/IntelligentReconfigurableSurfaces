@@ -4,18 +4,9 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 import scipy.constants as constants
-from mpl_toolkits.mplot3d import Axes3D
 import scipy.optimize as optimize
+from scipy.optimize import minimize_scalar
 from tqdm import tqdm
-
-
-def cartesian_to_spherical(cartesian_coords):
-    x, y, z = cartesian_coords.T
-    r = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-    theta = np.arccos(z / r)
-    phi = np.arctan(y / x)
-    spherical_coords = np.array([r, theta, phi]).T
-    return spherical_coords
 
 
 def reflection_coefficients(Z0, Z1_n):
@@ -50,6 +41,20 @@ def find_required_capacitance(R, L, w, phi_z):
     return Cn_solution
 
 
+# def phase_difference(C, target_phase, R, L, w):
+#     Z0 = freespace_impedance()
+#     Z1 = element_impedance(R, L, C, w)
+#     Z = reflection_coefficients(Z1, Z0)
+#     computed_phase = cmath.phase(Z)
+#     return abs(target_phase - computed_phase)
+
+
+# def find_required_capacitance(R, L, w, target_phase, C_min=1e-12, C_max=30e-12):
+#     bounds = (C_min, C_max)  # Set the bounds for the capacitance value (in Farads)
+#     result = minimize_scalar(phase_difference, bounds=bounds, args=(target_phase, R, L, w), method='bounded')
+#     return result.x  # Return the optimized capacitance value within the specified range
+
+
 def inverse_varactor(C, C_min, C_max, V_min, V_max):
     """Find the bias voltage needed to achieve the required capacitance value."""
     # Assuming a simple linear relationship between bias voltage and capacitance
@@ -57,85 +62,82 @@ def inverse_varactor(C, C_min, C_max, V_min, V_max):
     return V
 
 
-def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, element_spacing, wavelength, ni):
-    k0 = 2 * np.pi / wavelength
+def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, element_spacing, wavelength, wave_number,
+                         ni):
     m_values, n_values = np.meshgrid(np.arange(surface_size[0]), np.arange(surface_size[1]), indexing='ij')
 
     x_mn = (element_size / 2) + (m_values * element_spacing) + (m_values * element_size)
     y_mn = (element_size / 2) + (n_values * element_spacing) + (n_values * element_size)
     z_mn = np.zeros_like(x_mn)
 
-    I = np.stack((x_mn - transmitter[0], y_mn - transmitter[1], z_mn - transmitter[2]), axis=-1)
-    R = np.stack((receiver[0] - x_mn, receiver[1] - y_mn, receiver[2] - z_mn), axis=-1)
+    incident_vectors = np.stack((x_mn - transmitter[0], y_mn - transmitter[1], z_mn - transmitter[2]), axis=-1)
+    reflected_vectors = np.stack((receiver[0] - x_mn, receiver[1] - y_mn, receiver[2] - z_mn), axis=-1)
 
     normal = np.array([0, 0, 1])
 
-    I_norm = np.linalg.norm(I, axis=-1)
-    R_norm = np.linalg.norm(R, axis=-1)
+    incident_vectors_norms = np.linalg.norm(incident_vectors, axis=-1)
+    reflected_vectors_norms = np.linalg.norm(reflected_vectors, axis=-1)
 
-    theta_i = np.arccos(np.dot(I, normal) / I_norm)
-    theta_r = np.arccos(np.dot(R, normal) / R_norm)
+    theta_i = np.arccos(np.dot(incident_vectors, normal) / incident_vectors_norms)
+    theta_r = np.arccos(np.dot(reflected_vectors, normal) / reflected_vectors_norms)
 
     # Calculate angle between plane of incidence and projection of reflected vector onto plane perpendicular to incident vector
-    I_unit = I / I_norm[..., np.newaxis]
-    R_proj = R - np.sum(R * I_unit, axis=-1)[..., np.newaxis] * I_unit
-    N_plane = np.cross(I, normal[np.newaxis, np.newaxis, :])
-    cos_phi_r = np.sum(R_proj * N_plane, axis=-1) / (R_norm * np.linalg.norm(N_plane, axis=-1))
-    sin_phi_r = np.linalg.norm(np.cross(R_proj, N_plane), axis=-1) / (R_norm * np.linalg.norm(N_plane, axis=-1))
+    I_unit = incident_vectors / incident_vectors_norms[..., np.newaxis]
+    R_proj = reflected_vectors - np.sum(reflected_vectors * I_unit, axis=-1)[..., np.newaxis] * I_unit
+    N_plane = np.cross(incident_vectors, normal[np.newaxis, np.newaxis, :])
+    cos_phi_r = np.sum(R_proj * N_plane, axis=-1) / (reflected_vectors_norms * np.linalg.norm(N_plane, axis=-1))
+    sin_phi_r = np.linalg.norm(np.cross(R_proj, N_plane), axis=-1) / (
+            reflected_vectors_norms * np.linalg.norm(N_plane, axis=-1))
     phi_r = np.arctan2(sin_phi_r, cos_phi_r)
 
-    # R_proj = R.copy()
-    # R_proj[:, :, 0] = 0  # Projection of R onto the YZ plane
+    # R_proj = reflected_vectors.copy()
+    # R_proj[:, :, 0] = 0  # Projection of reflected_vectors onto the YZ plane
     # R_proj_mag = np.linalg.norm(R_proj, axis=2)
     #
     # # Calculate theta_r the angle between the reflected vector and its projection onto the YZ plane
-    # dot_product = np.sum(R * R_proj, axis=2)
-    # theta_r = np.arccos(dot_product / (R_norm * R_proj_mag))
+    # dot_product = np.sum(reflected_vectors * R_proj, axis=2)
+    # theta_r = np.arccos(dot_product / (reflected_vectors_norms * R_proj_mag))
     #
     # # Calculate angle between the projection of reflected vector onto the YZ plane and the z-axis
     # dot_product = np.sum(R_proj * normal, axis=2)
     # phi_r = np.arccos(dot_product / R_proj_mag)
 
-    dphi_dx = (np.sin(theta_r) - np.sin(theta_i)) * ni * k0
-    dphi_dy = np.cos(theta_r) * np.sin(phi_r) * ni * k0
+    dphi_dx = (np.sin(theta_r) - np.sin(theta_i)) * ni * wave_number
+    dphi_dy = np.cos(theta_r) * np.sin(phi_r) * ni * wave_number
 
     return dphi_dx, dphi_dy
 
 
-# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy)
+# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy) using Finite Difference Method
 def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y, f_init=0):
     # Integrate along the x-axis
-    phase_shifts_x_y0 = np.cumsum(dphi_dx * delta_x, axis=0) + f_init
+    phase_shifts_x_y0 = np.cumsum(dphi_dx * delta_x, axis=1)
 
     # Integrate along the y-axis
-    phase_shifts = np.cumsum(dphi_dy * delta_y, axis=1) + phase_shifts_x_y0
+    phase_shifts_x0_y = np.cumsum(dphi_dy * delta_y, axis=0)
+
+    phase_shifts = phase_shifts_x_y0 + phase_shifts_x0_y
 
     phase_shifts = np.mod(phase_shifts + np.pi, 2 * np.pi) - np.pi
 
     return phase_shifts
 
 
-def power_received(phase_shifts, surface_size, element_size, element_spacing, transmitter, receiver, wavelength, ni):
+def power_received(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts, wavelength,
+                   wave_number, angular_frequency, incident_amplitude, incident_phase, ni, plot_power=False):
     num_rows, num_columns = surface_size
 
     Z0 = freespace_impedance()
     R_value = 1
     L_value = 2.5e-9
-    f = constants.speed_of_light / wavelength
-    w = 2 * math.pi * f
-
-    A_i = 1
-    phi_i = math.radians(30)
-    # incident_wave_n = A_i * np.cos(w * t + phi_i)
 
     capacitance_matrix = np.zeros(surface_size)
 
-    elements_reflection_coefficients = []
+    real_phase_shifts = np.zeros(surface_size)
+
     rays_distances = []
 
-    transmitted_power = np.power(A_i, 2) / 2
-    # minimum_distance = np.min(rays_distances)
-    k = 2 * np.pi * ni / wavelength
+    transmitted_power = np.power(incident_amplitude, 2) / 2
     term1 = transmitted_power * np.power((wavelength / (4 * np.pi)), 2)
     term2 = 0
     received_powers = []
@@ -144,15 +146,17 @@ def power_received(phase_shifts, surface_size, element_size, element_spacing, tr
     for y in range(num_rows):
         for x in range(num_columns):
             # Find the required capacitance value for the desired phase shift
-            C_n = find_required_capacitance(R_value, L_value, w, phase_shifts[y, x])
+            C_n = find_required_capacitance(R_value, L_value, angular_frequency, phase_shifts[y, x])
             capacitance_matrix[y, x] = C_n
 
             # Calculate impedance for the current element
-            Z1_n = element_impedance(R_value, L_value, C_n, w)
+            Z1_n = element_impedance(R_value, L_value, C_n, angular_frequency)
 
             # Calculate reflection coefficient for the current element
             reflection_coefficient = reflection_coefficients(Z0, Z1_n)
             # elements_reflection_coefficients.append(reflection_coefficient)
+
+            real_phase_shifts[x, y] = cmath.phase(reflection_coefficient)
 
             # Position of the current element
             element_position = np.array(
@@ -168,11 +172,12 @@ def power_received(phase_shifts, surface_size, element_size, element_spacing, tr
             rays_distance = incidence_distance + reflection_distance
             rays_distances.append(rays_distance)
 
-            term2 += reflection_coefficient * np.exp(1j * k * rays_distance) / rays_distance
+            term2 += reflection_coefficient * np.exp(1j * wave_number * ni * rays_distance) / rays_distance
 
             received_powers.append(term1 * np.power(np.abs(term2), 2))
 
             pbar.update(1)
+    pbar.close()
 
     # for i in range(len(rays_distances)):
     #     # reflection_coefficient_amplitude = abs(elements_reflection_coefficients[i])
@@ -189,37 +194,28 @@ def power_received(phase_shifts, surface_size, element_size, element_spacing, tr
     # term2_1 = np.sum(
     #     elements_reflection_coefficients * np.exp(1j * k * (rays_distances - minimum_distance)) / rays_distances)
 
-    pbar.close()
+    received_power = term1 * np.power(np.abs(term2), 2)
 
-    print("transmitted power (in watts):", transmitted_power)
-    print("transmitted power (in dBm):", 10 * np.log10(transmitted_power / 1e-3))
     print("min distance:", np.min(rays_distances))
     print("max distance:", np.max(rays_distances))
 
-    print("term 1:", term1)
-    print("term 2 with for:", term2)
-    print("abs term 2 with for:", np.abs(term2))
-    # print("term 2 with np:", term2_1)
-
     # plot Power as function of number of elements
-    received_powers_dB = 10 * np.log10(np.array(received_powers) / 1e-3)
-    gain_dB = 10 * np.log10((np.array(received_powers) / 1e-3) / transmitted_power)
-    transmitted_power_dB_array = np.full_like(received_powers_dB, 10 * np.log10(transmitted_power / 1e-3))
-    plt.figure()
+    if plot_power:
+        received_powers_dB = 10 * np.log10(np.array(received_powers) / 1e-3)
+        gain_dB = 10 * np.log10((np.array(received_powers) / 1e-3) / transmitted_power)
+        transmitted_power_dB_array = np.full_like(received_powers_dB, 10 * np.log10(transmitted_power / 1e-3))
+        plt.figure()
 
-    plt.plot(transmitted_power_dB_array, label='Transmitted Power')
-    plt.plot(received_powers_dB, label='Received Power')
-    plt.plot(gain_dB, label='Gain')
-    plt.xscale('log')
-    # plt.yscale('log')
-    plt.xlabel('Number of Elements')
-    plt.ylabel('Power (in dBm)')
-    plt.legend()
-    plt.title('Power vs Number of Elements')
+        plt.plot(transmitted_power_dB_array, label='Transmitted Power')
+        plt.plot(received_powers_dB, label='Received Power')
+        plt.plot(gain_dB, label='Gain (Pr/Pt)')
+        plt.xscale('log')
+        plt.xlabel('Number of Elements')
+        plt.ylabel('Power (in dBm)')
+        plt.legend()
+        plt.title('Received Power vs Number of Elements')
 
-    received_power = term1 * np.power(np.abs(term2), 2)
-
-    return received_power, capacitance_matrix
+    return real_phase_shifts, capacitance_matrix, received_power
 
 
 def show_phase_shift_plots(phase_shifts):
@@ -229,7 +225,6 @@ def show_phase_shift_plots(phase_shifts):
     plt.title("Phase Shifts")
     plt.xlabel('Element Index (x)')
     plt.ylabel('Element Index (y)')
-    # plt.show()
 
 
 def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phi_matrix):
@@ -303,27 +298,40 @@ def main():
     # Parameters
     transmitter = np.array([1, 0.5, 10.5])  # Position of the transmitter
     receiver = np.array([1.5, 2.2, 5.5])  # Position of the receiver
-    ni = 1  # Refractive index
     frequency = 2.4e9  # Frequency in Hz
     c = 3e8  # Speed of light in m/s
     wavelength = c / frequency  # Calculate wavelength
-    surface_size = (100, 100)  # Metasurface dimensions (M, N)
+    angular_frequency = 2 * math.pi * frequency
+    wave_number = 2 * np.pi / wavelength
+    incident_amplitude = 1
+    incident_phase = math.radians(30)
+    # incident_wave_n = incident_amplitude * np.cos(w * t + incident_phase)
+
+    ni = 1  # Refractive index
+    surface_size = (1000, 1000)  # Metasurface dimensions (M, N)
     element_size = wavelength / 8
     element_spacing = wavelength / 8  # Element spacing in x and y
+    delta = element_size + element_spacing
 
     print("Surface Height:", ((surface_size[0] * element_size) + ((surface_size[0] - 1) * element_spacing)), "m")
     print("Surface Weight:", ((surface_size[1] * element_size) + ((surface_size[0] - 1) * element_spacing)), "m")
 
     # calculate the phase shift needed
     dphi_dx, dphi_dy = calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, element_spacing,
-                                            wavelength, ni)
+                                            wavelength, wave_number, ni)
 
-    delta = element_size + element_spacing
     phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
 
-    received_power, capacitance_matrix = power_received(phase_shifts, surface_size, element_size, element_spacing,
-                                                        transmitter, receiver, wavelength, ni)
+    real_phase_shifts, capacitance_matrix, received_power = power_received(transmitter, receiver, surface_size,
+                                                                           element_size, element_spacing, phase_shifts,
+                                                                           wavelength, wave_number, angular_frequency,
+                                                                           incident_amplitude, incident_phase, ni,
+                                                                           plot_power=True)
 
+    transmitted_power = np.power(incident_amplitude, 2) / 2
+
+    print("transmitted power (in watts):", transmitted_power)
+    print("transmitted power (in dBm):", 10 * np.log10(transmitted_power / 1e-3))
     print("Received Power (in Watts):", received_power)
     print("Received Power (in dBm):", 10 * math.log10(received_power / 1e-3))
 
