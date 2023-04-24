@@ -23,6 +23,10 @@ def element_impedance(R, L, C, w):
     return z
 
 
+def estimate_capacitance_for_phase_shift(target_phase_shift, c_values, phase_shifts):
+    return np.interp(target_phase_shift, phase_shifts, c_values, period=360)
+
+
 def main():
     # Parameters
     Z0 = freespace_impedance()
@@ -32,7 +36,7 @@ def main():
     # frequency = constants.speed_of_light / wavelength
     frequency = 2.4e9  # Frequency in Hz
     w = 2 * math.pi * frequency
-    c_values = np.arange(0.1e-12, 6e-12, 0.1e-12)
+    c_values = np.arange(0.01e-12, 6e-12, 0.01e-12)
 
     element_impedances = element_impedance(R_value, L_value, c_values, w)
 
@@ -56,6 +60,19 @@ def main():
     axs[1].set_xlabel('C Values')
     axs[1].set_ylabel('Phase Shift (degrees)')
     axs[1].grid(True)
+
+    target_phase_shift = 38  # Desired phase shift in degrees
+    estimated_C = estimate_capacitance_for_phase_shift(target_phase_shift, c_values, phase_shifts)
+    print(f"Estimated capacitance value: {np.round(estimated_C * 1e12, 2)}pF")
+
+    axs[1].scatter(estimated_C, target_phase_shift, color='r', marker='o', s=20,
+                   label=f'Desired Phase Shift ({target_phase_shift}°)')
+    axs[1].text((estimated_C + 0.1e-12), (target_phase_shift + 2),
+                f'({np.round(estimated_C * 1e12, 2)}pF, {target_phase_shift}°)', fontsize=10, color='blue')
+    axs[1].axhline(y=target_phase_shift, color='r', linestyle='--', clip_on=True)
+    axs[1].axvline(x=estimated_C, color='r', linestyle='--')
+    axs[1].legend()
+
     plt.show()
 
 

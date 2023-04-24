@@ -4,8 +4,6 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 import scipy.constants as constants
-import scipy.optimize as optimize
-from scipy.optimize import minimize_scalar
 from tqdm import tqdm
 
 
@@ -28,38 +26,20 @@ def element_impedance(R, L, C, w):
     return z
 
 
-def phi(R, L, C, w):
-    Z0 = freespace_impedance()
-    Z1 = element_impedance(R, L, C, w)
-    Z = reflection_coefficients(Z1, Z0)
-    return cmath.phase(Z)
+def estimate_capacitance_for_phase_shift(target_phase_shift, c_values, phase_shifts):
+    return np.interp(target_phase_shift, phase_shifts, c_values, period=(2 * np.pi))
 
 
-def find_required_capacitance(R, L, w, phi_z):
-    Cn_guess = 1e-12  # Initial guess for Cn
-    Cn_solution = optimize.fsolve(lambda C: phi(R, L, C, w) - phi_z, Cn_guess)
-    return Cn_solution
-
-
-# def phase_difference(C, target_phase, R, L, w):
-#     Z0 = freespace_impedance()
-#     Z1 = element_impedance(R, L, C, w)
-#     Z = reflection_coefficients(Z1, Z0)
-#     computed_phase = cmath.phase(Z)
-#     return abs(target_phase - computed_phase)
-
-
-# def find_required_capacitance(R, L, w, target_phase, C_min=1e-12, C_max=30e-12):
-#     bounds = (C_min, C_max)  # Set the bounds for the capacitance value (in Farads)
-#     result = minimize_scalar(phase_difference, bounds=bounds, args=(target_phase, R, L, w), method='bounded')
-#     return result.x  # Return the optimized capacitance value within the specified range
-
-
-def inverse_varactor(C, C_min, C_max, V_min, V_max):
+def required_varactor_bias_voltages(c):
     """Find the bias voltage needed to achieve the required capacitance value."""
-    # Assuming a simple linear relationship between bias voltage and capacitance
-    V = V_min + (V_max - V_min) * (C - C_min) / (C_max - C_min)
-    return V
+    # Set the parameters
+    # c0 = 867.3
+    c0 = 10e-12
+    v0 = 2.9
+    m = 1.66
+
+    v = v0 * ((c0 / c) ** (m - 1))
+    return np.round(v, 2)
 
 
 def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, element_spacing, wavelength, wave_number,
@@ -142,11 +122,18 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
     term2 = 0
     received_powers = []
 
+    capacitance_range = np.arange(0.1e-12, 6e-12, 0.01e-12)
+    element_impedances = element_impedance(R_value, L_value, capacitance_range, angular_frequency)
+    reflection_coeffs = reflection_coefficients(Z0, element_impedances)
+    reflection_coefficients_amplitude = np.abs(reflection_coeffs)
+    reflection_coefficients_phase_shifts = np.rad2deg(np.angle(reflection_coeffs))
+
     pbar = tqdm(total=(num_rows * num_columns), desc='Progress')
     for y in range(num_rows):
         for x in range(num_columns):
             # Find the required capacitance value for the desired phase shift
-            C_n = find_required_capacitance(R_value, L_value, angular_frequency, phase_shifts[y, x])
+            C_n = estimate_capacitance_for_phase_shift(phase_shifts[y, x], capacitance_range,
+                                                       reflection_coefficients_phase_shifts)
             capacitance_matrix[y, x] = C_n
 
             # Calculate impedance for the current element
@@ -328,6 +315,8 @@ def main():
                                                                            incident_amplitude, incident_phase, ni,
                                                                            plot_power=True)
 
+    corresponding_varactor_voltages = required_varactor_bias_voltages(capacitance_matrix)
+
     transmitted_power = np.power(incident_amplitude, 2) / 2
 
     print("transmitted power (in watts):", transmitted_power)
@@ -335,8 +324,10 @@ def main():
     print("Received Power (in Watts):", received_power)
     print("Received Power (in dBm):", 10 * math.log10(received_power / 1e-3))
 
-    print("\nCapacitance Matrix: ")
-    print(capacitance_matrix)
+    print("\nCapacitance Matrix (in picoFarad): ")
+    print(np.round(np.multiply(capacitance_matrix, 1e12), 2))
+    print("\n Required Varactor Bias Voltages (in Volts):")
+    print(corresponding_varactor_voltages)
 
     show_phase_shift_plots(np.degrees(phase_shifts))
     # draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts)
