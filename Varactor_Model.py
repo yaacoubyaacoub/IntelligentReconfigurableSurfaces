@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+# from "Microwave Engineering" by David M. Pozar; Chapter 11 - Active RF and Microwave Devices, Varactor Diodes page 537
 def c_v(v, c0, v0, m):
     """Returns the capacitance (in picoFarad) as function of the voltage (in volts)"""
     return c0 / ((1 + v / v0) ** m)
