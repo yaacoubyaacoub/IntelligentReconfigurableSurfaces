@@ -480,9 +480,9 @@ def main():
     surface_height = (surface_size[0] * element_size) + ((surface_size[0] - 1) * element_spacing)
     surface_width = (surface_size[1] * element_size) + ((surface_size[0] - 1) * element_spacing)
     surface_area = surface_height * surface_width
-    print(f"Surface Height: {surface_height} m")
-    print(f"Surface Width: {surface_width} m")
-    print(f"Surface Area: {surface_area} m²")
+    print(f"Surface Height: {round(surface_height, 2)} m")
+    print(f"Surface Width: {round(surface_width, 2)} m")
+    print(f"Surface Area: {round(surface_area, 2)} m²")
 
     # calculate the phase shift needed
     dphi_dx, dphi_dy = calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, element_spacing,
