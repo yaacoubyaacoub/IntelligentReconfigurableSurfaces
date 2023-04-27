@@ -46,7 +46,7 @@ def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, elem
     I_norm = np.linalg.norm(I, axis=-1)
     R_norm = np.linalg.norm(R, axis=-1)
 
-    theta_i = np.arccos(np.dot(I, normal) / I_norm)
+    theta_i = np.arccos(np.dot(-I, normal) / I_norm)
     theta_r = np.arccos(np.dot(R, normal) / R_norm)
 
     # Calculate angle between plane of incidence and projection of reflected vector onto plane perpendicular to incident vector

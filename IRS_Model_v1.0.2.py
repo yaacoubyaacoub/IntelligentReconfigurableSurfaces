@@ -59,7 +59,7 @@ def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, elem
     incident_vectors_norms = np.linalg.norm(incident_vectors, axis=-1)
     reflected_vectors_norms = np.linalg.norm(reflected_vectors, axis=-1)
 
-    theta_i = np.arccos(np.dot(incident_vectors, normal) / incident_vectors_norms)
+    theta_i = np.arccos(np.dot(-incident_vectors, normal) / incident_vectors_norms)
     theta_r = np.arccos(np.dot(reflected_vectors, normal) / reflected_vectors_norms)
 
     # Calculate angle between plane of incidence and projection of reflected vector onto plane perpendicular to incident vector
@@ -100,10 +100,10 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
     curr_x, curr_y = 0, 0
 
     visited_elements = np.zeros(dphi_dx.shape, dtype=int)
-    visited_elements[curr_y, curr_x] = 100
+    visited_elements[curr_y, curr_x] = 200
 
     i = 0
-    while np.min(visited_elements) < 100:
+    while np.min(visited_elements) < 200:
         i += 1
         new_direction = random.randint(1, 4)
         # Directions:
