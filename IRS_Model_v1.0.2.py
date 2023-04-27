@@ -89,12 +89,12 @@ def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, elem
     return dphi_dx, dphi_dy
 
 
-# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy) using Finite Difference Method
+# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy) using Finite Random Walk
 def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
     """
-        Calculates the phase_shifts from the partial derivatives dphi_dx, dphi_dy using "Random Walk Method".
-        Random Walk in a loop that mase sure that all elements are visited at least 100 times.
-        """
+    Calculates the phase_shifts from the partial derivatives dphi_dx, dphi_dy using "Random Walk Method".
+    Random Walk in a loop that mase sure that all elements are visited at least 100 times.
+    """
     phase_shifts = np.zeros(dphi_dx.shape)
 
     curr_x, curr_y = 0, 0
