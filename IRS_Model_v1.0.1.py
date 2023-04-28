@@ -47,27 +47,27 @@ def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, elem
     R_norm = np.linalg.norm(R, axis=-1)
 
     theta_i = np.arccos(np.dot(-I, normal) / I_norm)
-    theta_r = np.arccos(np.dot(R, normal) / R_norm)
-
-    # Calculate angle between plane of incidence and projection of reflected vector onto plane perpendicular to incident vector
-    I_unit = I / I_norm[..., np.newaxis]
-    R_proj = R - np.sum(R * I_unit, axis=-1)[..., np.newaxis] * I_unit
-    N_plane = np.cross(I, normal[np.newaxis, np.newaxis, :])
-    cos_phi_r = np.sum(R_proj * N_plane, axis=-1) / (R_norm * np.linalg.norm(N_plane, axis=-1))
-    sin_phi_r = np.linalg.norm(np.cross(R_proj, N_plane), axis=-1) / (R_norm * np.linalg.norm(N_plane, axis=-1))
-    phi_r = np.arctan2(sin_phi_r, cos_phi_r)
-
-    # R_proj = R.copy()
-    # R_proj[:, :, 0] = 0  # Projection of R onto the YZ plane
-    # R_proj_mag = np.linalg.norm(R_proj, axis=2)
+    # theta_r = np.arccos(np.dot(R, normal) / R_norm)
     #
-    # # Calculate theta_r the angle between the reflected vector and its projection onto the YZ plane
-    # dot_product = np.sum(R * R_proj, axis=2)
-    # theta_r = np.arccos(dot_product / (R_norm * R_proj_mag))
-    #
-    # # Calculate angle between the projection of reflected vector onto the YZ plane and the z-axis
-    # dot_product = np.sum(R_proj * normal, axis=2)
-    # phi_r = np.arccos(dot_product / R_proj_mag)
+    # # Calculate angle between plane of incidence and projection of reflected vector onto plane perpendicular to incident vector
+    # I_unit = I / I_norm[..., np.newaxis]
+    # R_proj = R - np.sum(R * I_unit, axis=-1)[..., np.newaxis] * I_unit
+    # N_plane = np.cross(I, normal[np.newaxis, np.newaxis, :])
+    # cos_phi_r = np.sum(R_proj * N_plane, axis=-1) / (R_norm * np.linalg.norm(N_plane, axis=-1))
+    # sin_phi_r = np.linalg.norm(np.cross(R_proj, N_plane), axis=-1) / (R_norm * np.linalg.norm(N_plane, axis=-1))
+    # phi_r = np.arctan2(sin_phi_r, cos_phi_r)
+
+    R_proj = R.copy()
+    R_proj[:, :, 0] = 0  # Projection of R onto the YZ plane
+    R_proj_mag = np.linalg.norm(R_proj, axis=2)
+
+    # Calculate theta_r the angle between the reflected vector and its projection onto the YZ plane
+    dot_product = np.sum(R * R_proj, axis=2)
+    theta_r = np.arccos(dot_product / (R_norm * R_proj_mag))
+
+    # Calculate angle between the projection of reflected vector onto the YZ plane and the z-axis
+    dot_product = np.sum(R_proj * normal, axis=2)
+    phi_r = np.arccos(dot_product / R_proj_mag)
 
     dphi_dx = (np.sin(theta_r) - np.sin(theta_i)) * ni * k0
     dphi_dy = np.cos(theta_r) * np.sin(phi_r) * ni * k0
@@ -76,7 +76,7 @@ def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, elem
 
 
 # Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy) using Finite Difference Method
-def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y, save_results=False):
+def calculate_phase_shifts_with_FDM(dphi_dx, dphi_dy, delta_x, delta_y, save_results=False):
     """
     f(x,y) = [f(x-1,y) + (df/dx * ∆x)] + [f(x,y-1) + (df/dy * ∆y)]
     """
@@ -120,7 +120,7 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y, sa
 
 
 # Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy)
-def calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta_x, delta_y, save_results=False):
+def calculate_phase_shifts_with_second_derivative(dphi_dx, dphi_dy, delta_x, delta_y, save_results=False):
     dphi2_dxdy = np.zeros(dphi_dx.shape)
 
     for y in range(dphi_dx.shape[0]):
@@ -174,8 +174,8 @@ def calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta_x, delta_y, s
     return phase_shifts
 
 
-# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy) with random walk
-def calculate_phase_shifts_from_gradients2(dphi_dx, dphi_dy, delta_x, delta_y, save_results=False):
+# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy) using Random Walk
+def calculate_phase_shifts_with_random_walk(dphi_dx, dphi_dy, delta_x, delta_y, save_results=False):
     """
     Calculates the phase_shifts from the partial derivatives dphi_dx, dphi_dy using "Random Walk Method".
     Random Walk in a loop that mase sure that all elements are visited at least 100 times.
@@ -185,9 +185,11 @@ def calculate_phase_shifts_from_gradients2(dphi_dx, dphi_dy, delta_x, delta_y, s
     curr_x, curr_y = 0, 0
 
     visited_elements = np.zeros(dphi_dx.shape, dtype=int)
-    visited_elements[curr_y, curr_x] = 100
+    visited_elements[curr_y, curr_x] = 20
 
-    while np.min(visited_elements) < 100:
+    i = 0
+    while np.min(visited_elements) < 20:
+        i += 1
         new_direction = random.randint(1, 4)
         # Directions:
         #     1 = Right (-->)
@@ -251,12 +253,13 @@ def calculate_phase_shifts_from_gradients2(dphi_dx, dphi_dy, delta_x, delta_y, s
     print("mse_dphi_dx", msedx)
     print("mae_dphi_dy", maedy)
     print("mse_dphi_dy", msedy)
-    print()
 
     print("Minimum Element visited:", np.min(visited_elements))
     print("Maximum Element visited:", np.max(visited_elements))
     print("Average number of times each element is visited", np.average(visited_elements))
     print("Standard Deviation between the number of visits for each element", np.round(np.std(visited_elements), 2))
+
+    print()
 
     if save_results:
         results_file = open("./Results_model_v1-0-1/FunctionEstimationErrors.txt", "a")
@@ -274,14 +277,14 @@ def calculate_phase_shifts_from_gradients2(dphi_dx, dphi_dy, delta_x, delta_y, s
 
 
 # Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy) with random walk
-def calculate_phase_shifts_from_gradients22(dphi_dx, dphi_dy, delta_x, delta_y, save_results=False):
+def calculate_phase_shifts_with_random_walk2(dphi_dx, dphi_dy, delta_x, delta_y, save_results=False):
     """
     Calculates the phase_shifts from the partial derivatives dphi_dx, dphi_dy using "Random Walk Method".
     Random Walk in a loop that make sure that all elements are visited then repeat this process n times.
     """
     phase_shifts = np.zeros(dphi_dx.shape)
 
-    for _ in tqdm(range(100)):
+    for _ in tqdm(range(20)):
         curr_x, curr_y = 0, 0
 
         visited = np.zeros(dphi_dx.shape, dtype=bool)
@@ -348,7 +351,7 @@ def calculate_phase_shifts_from_gradients22(dphi_dx, dphi_dy, delta_x, delta_y, 
     abs_diffdy = np.abs(dphi_dy - dphi_dy_recovered)
     maedy = np.mean(abs_diffdy)
     msedy = np.mean(abs_diffdy ** 2)
-    print("random_walk_method Errors")
+    print("random_walk2_method Errors")
     print("mae_dphi_dx", maedx)
     print("mse_dphi_dx", msedx)
     print("mae_dphi_dy", maedy)
@@ -357,7 +360,7 @@ def calculate_phase_shifts_from_gradients22(dphi_dx, dphi_dy, delta_x, delta_y, 
 
     if save_results:
         results_file = open("./Results_model_v1-0-1/FunctionEstimationErrors.txt", "a")
-        results_file.write("Random Walk Method:\n")
+        results_file.write("Random Walk2 Method:\n")
         results_file.write(f"\tmae_dphi_dx: {maedx} \n")
         results_file.write(f"\tmse_dphi_dx: {msedx} \n")
         results_file.write(f"\tmae_dphi_dy: {maedy} \n")
@@ -496,8 +499,8 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
 def main():
     save_results = False
     # Parameters
-    transmitter = np.array([1, 0.5, 10.5])  # Position of the transmitter
-    receiver = np.array([1.5, 1.2, 5.5])  # Position of the receiver
+    transmitter = np.array([1, 0.5, 10])  # Position of the transmitter
+    receiver = np.array([1.5, 1.2, 40])  # Position of the receiver
     ni = 1  # Refractive index
     frequency = 2.4e9  # Frequency in Hz
     c = 3e8  # Speed of light in m/s
@@ -522,15 +525,17 @@ def main():
         results_file.close()
 
     delta = element_size + element_spacing
-    phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta, save_results=save_results)
-    phase_shifts1 = calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta, delta, save_results=save_results)
-    phase_shifts2 = calculate_phase_shifts_from_gradients2(dphi_dx, dphi_dy, delta, delta, save_results=save_results)
+    phase_shifts = calculate_phase_shifts_with_FDM(dphi_dx, dphi_dy, delta, delta, save_results=save_results)
+    phase_shifts1 = calculate_phase_shifts_with_second_derivative(dphi_dx, dphi_dy, delta, delta, save_results=save_results)
+    phase_shifts2 = calculate_phase_shifts_with_random_walk(dphi_dx, dphi_dy, delta, delta, save_results=save_results)
+    phase_shifts3 = calculate_phase_shifts_with_random_walk2(dphi_dx, dphi_dy, delta, delta, save_results=save_results)
     # phase_shifts3 = fft_poisson_solver(dphi_dx, dphi_dy, delta, delta)
 
     show_phase_shift_plots(np.degrees(phase_shifts), "phase_shifts - FDM", save_plot=save_results)
     show_phase_shift_plots(np.degrees(phase_shifts1), "phase_shifts - second derivative", save_plot=save_results)
     show_phase_shift_plots(np.degrees(phase_shifts2), "phase_shifts - random walk", save_plot=save_results)
-    # show_phase_shift_plots(np.degrees(phase_shifts3))
+    show_phase_shift_plots(np.degrees(phase_shifts3), "phase_shifts - random walk2", save_plot=save_results)
+    # show_phase_shift_plots(np.degrees(phase_shifts4))
 
     if save_results:
         results_directory = "./Results_model_v1-0-1/"

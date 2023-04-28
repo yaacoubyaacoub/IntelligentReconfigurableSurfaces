@@ -75,27 +75,27 @@ def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, elem
     R_norm = np.linalg.norm(R, axis=-1)
 
     theta_i = np.arccos(np.dot(I, normal) / I_norm)
-    theta_r = np.arccos(np.dot(R, normal) / R_norm)
-
-    # Calculate angle between plane of incidence and projection of reflected vector onto plane perpendicular to incident vector
-    I_unit = I / I_norm[..., np.newaxis]
-    R_proj = R - np.sum(R * I_unit, axis=-1)[..., np.newaxis] * I_unit
-    N_plane = np.cross(I, normal[np.newaxis, np.newaxis, :])
-    cos_phi_r = np.sum(R_proj * N_plane, axis=-1) / (R_norm * np.linalg.norm(N_plane, axis=-1))
-    sin_phi_r = np.linalg.norm(np.cross(R_proj, N_plane), axis=-1) / (R_norm * np.linalg.norm(N_plane, axis=-1))
-    phi_r = np.arctan2(sin_phi_r, cos_phi_r)
-
-    # R_proj = R.copy()
-    # R_proj[:, :, 0] = 0  # Projection of R onto the YZ plane
-    # R_proj_mag = np.linalg.norm(R_proj, axis=2)
+    # theta_r = np.arccos(np.dot(R, normal) / R_norm)
     #
-    # # Calculate theta_r the angle between the reflected vector and its projection onto the YZ plane
-    # dot_product = np.sum(R * R_proj, axis=2)
-    # theta_r = np.arccos(dot_product / (R_norm * R_proj_mag))
-    #
-    # # Calculate angle between the projection of reflected vector onto the YZ plane and the z-axis
-    # dot_product = np.sum(R_proj * normal, axis=2)
-    # phi_r = np.arccos(dot_product / R_proj_mag)
+    # # Calculate angle between plane of incidence and projection of reflected vector onto plane perpendicular to incident vector
+    # I_unit = I / I_norm[..., np.newaxis]
+    # R_proj = R - np.sum(R * I_unit, axis=-1)[..., np.newaxis] * I_unit
+    # N_plane = np.cross(I, normal[np.newaxis, np.newaxis, :])
+    # cos_phi_r = np.sum(R_proj * N_plane, axis=-1) / (R_norm * np.linalg.norm(N_plane, axis=-1))
+    # sin_phi_r = np.linalg.norm(np.cross(R_proj, N_plane), axis=-1) / (R_norm * np.linalg.norm(N_plane, axis=-1))
+    # phi_r = np.arctan2(sin_phi_r, cos_phi_r)
+
+    R_proj = R.copy()
+    R_proj[:, :, 0] = 0  # Projection of R onto the YZ plane
+    R_proj_mag = np.linalg.norm(R_proj, axis=2)
+
+    # Calculate theta_r the angle between the reflected vector and its projection onto the YZ plane
+    dot_product = np.sum(R * R_proj, axis=2)
+    theta_r = np.arccos(dot_product / (R_norm * R_proj_mag))
+
+    # Calculate angle between the projection of reflected vector onto the YZ plane and the z-axis
+    dot_product = np.sum(R_proj * normal, axis=2)
+    phi_r = np.arccos(dot_product / R_proj_mag)
 
     dphi_dx = (np.sin(theta_r) - np.sin(theta_i)) * ni * k0
     dphi_dy = np.cos(theta_r) * np.sin(phi_r) * ni * k0
