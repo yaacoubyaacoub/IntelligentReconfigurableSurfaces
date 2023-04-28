@@ -105,9 +105,9 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
     visited_elements = np.zeros(dphi_dx.shape, dtype=int)
     visited_elements[curr_y, curr_x] = 100
 
-    i = 0
+    min_visits = 0
+    pbar = tqdm(total=100)
     while np.min(visited_elements) < 100:
-        i += 1
         new_direction = random.randint(1, 4)
         # Directions:
         #     1 = Right (-->)
@@ -157,6 +157,11 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
             else:
                 continue
             visited_elements[curr_y, curr_x] += 1
+
+        if min_visits < np.min(visited_elements):
+            min_visits = np.min(visited_elements)
+            pbar.update(1)
+    pbar.close()
 
     phase_shifts = np.mod(phase_shifts + np.pi, 2 * np.pi) - np.pi
 

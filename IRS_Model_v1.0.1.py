@@ -185,11 +185,11 @@ def calculate_phase_shifts_with_random_walk(dphi_dx, dphi_dy, delta_x, delta_y, 
     curr_x, curr_y = 0, 0
 
     visited_elements = np.zeros(dphi_dx.shape, dtype=int)
-    visited_elements[curr_y, curr_x] = 20
+    visited_elements[curr_y, curr_x] = 100
 
-    i = 0
-    while np.min(visited_elements) < 20:
-        i += 1
+    min_visits = 0
+    pbar = tqdm(total=100)
+    while np.min(visited_elements) < 100:
         new_direction = random.randint(1, 4)
         # Directions:
         #     1 = Right (-->)
@@ -239,6 +239,11 @@ def calculate_phase_shifts_with_random_walk(dphi_dx, dphi_dy, delta_x, delta_y, 
             else:
                 continue
             visited_elements[curr_y, curr_x] += 1
+
+        if min_visits < np.min(visited_elements):
+            min_visits = np.min(visited_elements)
+            pbar.update(1)
+    pbar.close()
 
     dphi_dx_recovered = np.gradient(phase_shifts, axis=1) / delta_x
     abs_diffdx = np.abs(dphi_dx - dphi_dx_recovered)
