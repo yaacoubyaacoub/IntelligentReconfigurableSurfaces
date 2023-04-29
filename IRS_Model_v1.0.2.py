@@ -440,9 +440,17 @@ def main():
         results_file.write(f"Surface Width: {round(surface_width, 2)} m\n")
         results_file.write(f"Surface Area: {round(surface_area, 2)} m²\n")
         results_file.write(
-            f"min NLOS distance between emitter and receiver through surface: {min_max_transmitter_distance[0]} m\n")
+            f"min LOS distance between emitter and surface through surface: {min_max_transmitter_distance[0]} m\n")
         results_file.write(
-            f"max NLOS distance between emitter and receiver through surface: {min_max_transmitter_distance[1]} m\n")
+            f"max LOS distance between emitter and surface through surface: {min_max_transmitter_distance[1]} m\n")
+        results_file.write(
+            f"min LOS distance between surface and receiver through surface: {min_max_receiver_distance[0]} m\n")
+        results_file.write(
+            f"max LOS distance between surface and receiver through surface: {min_max_receiver_distance[1]} m\n")
+        results_file.write(
+            f"min NLOS distance between emitter and receiver through surface: {min_max_distance[0]} m\n")
+        results_file.write(
+            f"max NLOS distance between emitter and receiver through surface: {min_max_distance[1]} m\n")
         results_file.write(f"transmitted power (in Watts): {transmitted_power} W\n")
         results_file.write(f"transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm\n")
         results_file.write(f"Received Power (in Watts): {received_power:.2e} W\n")

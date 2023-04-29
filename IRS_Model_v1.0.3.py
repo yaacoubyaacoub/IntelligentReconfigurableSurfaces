@@ -320,7 +320,7 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
         plt.title('Received Power vs Number of Elements')
 
         if save_plot:
-            plt.savefig("./Results_model_v1-0-2/Received Power vs Number of Elements.png")
+            plt.savefig("./Results_model_v1-0-3/Received Power vs Number of Elements.png")
 
     return real_phase_shifts, capacitance_matrix, received_power, min_max_transmitter_distance, min_max_receiver_distance, min_max_distance
 
@@ -333,7 +333,7 @@ def show_phase_shift_plots(phase_shifts, title, save_plot=False):
     plt.xlabel('Element Index (x)')
     plt.ylabel('Element Index (y)')
     if save_plot:
-        plt.savefig(f"./Results_model_v1-0-2/{title}.png")
+        plt.savefig(f"./Results_model_v1-0-3/{title}.png")
 
 
 def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phi_matrix):
@@ -467,7 +467,7 @@ def main():
     print(corresponding_varactor_voltages)
 
     if save_results:
-        results_file = open("./Results_model_v1-0-2/results.txt", "w")
+        results_file = open("./Results_model_v1-0-3/results.txt", "w")
         results_file.write(f"Incident Signal Wavelength: {round(wavelength, 3)} m\n")
         results_file.write(f"Surface Number of Elements: {surface_size}\n")
         results_file.write(f"Surface Elements Sizes: {round(element_size, 3)} m\n")
@@ -476,23 +476,31 @@ def main():
         results_file.write(f"Surface Width: {round(surface_width, 2)} m\n")
         results_file.write(f"Surface Area: {round(surface_area, 2)} m²\n")
         results_file.write(
-            f"min NLOS distance between emitter and receiver through surface: {min_max_transmitter_distance[0]} m\n")
+            f"min LOS distance between emitter and surface through surface: {min_max_transmitter_distance[0]} m\n")
         results_file.write(
-            f"max NLOS distance between emitter and receiver through surface: {min_max_transmitter_distance[1]} m\n")
+            f"max LOS distance between emitter and surface through surface: {min_max_transmitter_distance[1]} m\n")
+        results_file.write(
+            f"min LOS distance between surface and receiver through surface: {min_max_receiver_distance[0]} m\n")
+        results_file.write(
+            f"max LOS distance between surface and receiver through surface: {min_max_receiver_distance[1]} m\n")
+        results_file.write(
+            f"min NLOS distance between emitter and receiver through surface: {min_max_distance[0]} m\n")
+        results_file.write(
+            f"max NLOS distance between emitter and receiver through surface: {min_max_distance[1]} m\n")
         results_file.write(f"transmitted power (in Watts): {transmitted_power} W\n")
         results_file.write(f"transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm\n")
         results_file.write(f"Received Power (in Watts): {received_power:.2e} W\n")
         results_file.write(f"Received Power (in dBm): {round(10 * math.log10(received_power / 1e-3), 2)} dBm\n")
         results_file.close()
 
-        np.savetxt("./Results_model_v1-0-2/required_phase_shifts(in degrees).csv", np.degrees(phase_shifts),
+        np.savetxt("./Results_model_v1-0-3/required_phase_shifts(in degrees).csv", np.degrees(phase_shifts),
                    delimiter=",")
-        np.savetxt("./Results_model_v1-0-2/real_phase_shifts(in degrees).csv", np.degrees(real_phase_shifts),
+        np.savetxt("./Results_model_v1-0-3/real_phase_shifts(in degrees).csv", np.degrees(real_phase_shifts),
                    delimiter=",")
-        np.savetxt("./Results_model_v1-0-2/varactors_capacitance_matrix(in picoFarad).csv",
+        np.savetxt("./Results_model_v1-0-3/varactors_capacitance_matrix(in picoFarad).csv",
                    np.round(np.multiply(capacitance_matrix, 1e12), 2),
                    delimiter=",")
-        np.savetxt("./Results_model_v1-0-2/corresponding_varactor_voltages(in Volts).csv",
+        np.savetxt("./Results_model_v1-0-3/corresponding_varactor_voltages(in Volts).csv",
                    corresponding_varactor_voltages,
                    delimiter=",")
 
