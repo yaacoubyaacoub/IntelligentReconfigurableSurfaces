@@ -30,47 +30,63 @@ def element_impedance(R, L, C, w):
     return z
 
 
-def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, element_spacing, wavelength, ni):
-    k0 = 2 * np.pi / wavelength
+def project_vector_onto_plane(vi, vr, uz):
+    # Find the normal vector of plane Pi
+    ni = np.cross(vi, uz)
+
+    # Find the normal vector of plane Pr
+    nr = np.cross(ni, uz)
+    nr = nr / np.linalg.norm(nr, axis=-1, keepdims=True)
+
+    # Calculate the projection of vr onto nr
+    proj_vr_on_nr = (np.expand_dims(np.sum(vr * nr, axis=2), axis=2) / np.power(
+        np.linalg.norm(nr, axis=-1, keepdims=True), 2)) * nr
+
+    # Calculate the projection of vr onto plane Pr
+    proj_vr_on_pr = vr - proj_vr_on_nr
+
+    return proj_vr_on_pr
+
+
+def calculate_dphi_dx_dy(transmitter, receiver, surface_size, element_size, element_spacing, wavelength, wave_number,
+                         ni):
     m_values, n_values = np.meshgrid(np.arange(surface_size[0]), np.arange(surface_size[1]), indexing='ij')
 
     x_mn = (element_size / 2) + (m_values * element_spacing) + (m_values * element_size)
     y_mn = (element_size / 2) + (n_values * element_spacing) + (n_values * element_size)
     z_mn = np.zeros_like(x_mn)
 
-    I = np.stack((x_mn - transmitter[0], y_mn - transmitter[1], z_mn - transmitter[2]), axis=-1)
-    R = np.stack((receiver[0] - x_mn, receiver[1] - y_mn, receiver[2] - z_mn), axis=-1)
+    incident_vectors = np.stack((x_mn - transmitter[0], y_mn - transmitter[1], z_mn - transmitter[2]), axis=2)
+    reflected_vectors = np.stack((receiver[0] - x_mn, receiver[1] - y_mn, receiver[2] - z_mn), axis=2)
 
     normal = np.array([0, 0, 1])
 
-    I_norm = np.linalg.norm(I, axis=-1)
-    R_norm = np.linalg.norm(R, axis=-1)
+    incident_vectors_norms = np.linalg.norm(incident_vectors, axis=2)
+    reflected_vectors_norms = np.linalg.norm(reflected_vectors, axis=2)
 
-    theta_i = np.arccos(np.dot(-I, normal) / I_norm)
-    # theta_r = np.arccos(np.dot(R, normal) / R_norm)
-    #
-    # # Calculate angle between plane of incidence and projection of reflected vector onto plane perpendicular to incident vector
-    # I_unit = I / I_norm[..., np.newaxis]
-    # R_proj = R - np.sum(R * I_unit, axis=-1)[..., np.newaxis] * I_unit
-    # N_plane = np.cross(I, normal[np.newaxis, np.newaxis, :])
-    # cos_phi_r = np.sum(R_proj * N_plane, axis=-1) / (R_norm * np.linalg.norm(N_plane, axis=-1))
-    # sin_phi_r = np.linalg.norm(np.cross(R_proj, N_plane), axis=-1) / (R_norm * np.linalg.norm(N_plane, axis=-1))
-    # phi_r = np.arctan2(sin_phi_r, cos_phi_r)
+    theta_i = np.arccos(np.dot(-incident_vectors, normal) / incident_vectors_norms)
+    # theta_r = np.arccos(np.dot(reflected_vectors, normal) / reflected_vectors_norms)
 
-    R_proj = R.copy()
-    R_proj[:, :, 0] = 0  # Projection of R onto the YZ plane
-    R_proj_mag = np.linalg.norm(R_proj, axis=2)
+    # "projections" are the projection vectors of reflected vectors onto plane perpendicular to incident vectors
+    # "theta_r" are the angles between reflected vectors and the "projections"
+    # "phi_r" are the angles between projections and normal the metasurface (z axis)
+    projections = project_vector_onto_plane(incident_vectors, reflected_vectors, normal)
+    projections_mag = np.linalg.norm(projections, axis=2)
 
-    # Calculate theta_r the angle between the reflected vector and its projection onto the YZ plane
-    dot_product = np.sum(R * R_proj, axis=2)
-    theta_r = np.arccos(dot_product / (R_norm * R_proj_mag))
+    theta_r = np.arccos(np.sum(projections * reflected_vectors, axis=2) / (projections_mag * reflected_vectors_norms))
+    phi_r = np.arccos(np.sum(projections * normal, axis=2) / projections_mag)
 
-    # Calculate angle between the projection of reflected vector onto the YZ plane and the z-axis
-    dot_product = np.sum(R_proj * normal, axis=2)
-    phi_r = np.arccos(dot_product / R_proj_mag)
+    # If rounding to 2 digits: accurate to 0.57 degrees = 0.01 radiant
+    # If rounding to 3 digits: accurate to 0.057 degrees = 0.001 radiant
+    accuracy = 3
+    pr0 = np.round(phi_r, accuracy) == 0
+    titr = np.round(theta_i, accuracy) == np.round(theta_r, accuracy)
+    s = np.logical_and(titr, pr0)
+    ns = np.sum(s)
+    ps = round((ns / s.size) * 100, 2)
 
-    dphi_dx = (np.sin(theta_r) - np.sin(theta_i)) * ni * k0
-    dphi_dy = np.cos(theta_r) * np.sin(phi_r) * ni * k0
+    dphi_dx = (np.sin(theta_r) - np.sin(theta_i)) * ni * wave_number
+    dphi_dy = np.cos(theta_r) * np.sin(phi_r) * ni * wave_number
 
     return dphi_dx, dphi_dy
 

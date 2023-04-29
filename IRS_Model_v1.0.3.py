@@ -43,6 +43,24 @@ def required_varactor_bias_voltages(c):
     return np.round(v, 2)
 
 
+def project_vector_onto_plane(vi, vr, uz):
+    # Find the normal vector of plane Pi
+    ni = np.cross(vi, uz)
+
+    # Find the normal vector of plane Pr
+    nr = np.cross(ni, uz)
+    nr = nr / np.linalg.norm(nr, axis=-1, keepdims=True)
+
+    # Calculate the projection of vr onto nr
+    proj_vr_on_nr = (np.expand_dims(np.sum(vr * nr, axis=2), axis=2) / np.power(
+        np.linalg.norm(nr, axis=-1, keepdims=True), 2)) * nr
+
+    # Calculate the projection of vr onto plane Pr
+    proj_vr_on_pr = vr - proj_vr_on_nr
+
+    return proj_vr_on_pr
+
+
 def calculate_angles(transmitter, receiver, surface_size, element_size, element_spacing):
     m_values, n_values = np.meshgrid(np.arange(surface_size[0]), np.arange(surface_size[1]), indexing='ij')
 
@@ -50,37 +68,34 @@ def calculate_angles(transmitter, receiver, surface_size, element_size, element_
     y_mn = (element_size / 2) + (n_values * element_spacing) + (n_values * element_size)
     z_mn = np.zeros_like(x_mn)
 
-    incident_vectors = np.stack((x_mn - transmitter[0], y_mn - transmitter[1], z_mn - transmitter[2]), axis=-1)
-    reflected_vectors = np.stack((receiver[0] - x_mn, receiver[1] - y_mn, receiver[2] - z_mn), axis=-1)
+    incident_vectors = np.stack((x_mn - transmitter[0], y_mn - transmitter[1], z_mn - transmitter[2]), axis=2)
+    reflected_vectors = np.stack((receiver[0] - x_mn, receiver[1] - y_mn, receiver[2] - z_mn), axis=2)
 
     normal = np.array([0, 0, 1])
 
-    incident_vectors_norms = np.linalg.norm(incident_vectors, axis=-1)
-    reflected_vectors_norms = np.linalg.norm(reflected_vectors, axis=-1)
+    incident_vectors_norms = np.linalg.norm(incident_vectors, axis=2)
+    reflected_vectors_norms = np.linalg.norm(reflected_vectors, axis=2)
 
     theta_i = np.arccos(np.dot(-incident_vectors, normal) / incident_vectors_norms)
     # theta_r = np.arccos(np.dot(reflected_vectors, normal) / reflected_vectors_norms)
 
-    # # Calculate angle between plane of incidence and projection of reflected vector onto plane perpendicular to incident vector
-    # I_unit = incident_vectors / incident_vectors_norms[..., np.newaxis]
-    # R_proj = reflected_vectors - np.sum(reflected_vectors * I_unit, axis=-1)[..., np.newaxis] * I_unit
-    # N_plane = np.cross(incident_vectors, normal[np.newaxis, np.newaxis, :])
-    # cos_phi_r = np.sum(R_proj * N_plane, axis=-1) / (reflected_vectors_norms * np.linalg.norm(N_plane, axis=-1))
-    # sin_phi_r = np.linalg.norm(np.cross(R_proj, N_plane), axis=-1) / (
-    #         reflected_vectors_norms * np.linalg.norm(N_plane, axis=-1))
-    # phi_r = np.arctan2(sin_phi_r, cos_phi_r)
+    # "projections" are the projection vectors of reflected vectors onto plane perpendicular to incident vectors
+    # "theta_r" are the angles between reflected vectors and the "projections"
+    # "phi_r" are the angles between projections and normal the metasurface (z axis)
+    projections = project_vector_onto_plane(incident_vectors, reflected_vectors, normal)
+    projections_mag = np.linalg.norm(projections, axis=2)
 
-    R_proj = reflected_vectors.copy()
-    R_proj[:, :, 0] = 0  # Projection of reflected_vectors onto the YZ plane
-    R_proj_mag = np.linalg.norm(R_proj, axis=2)
+    theta_r = np.arccos(np.sum(projections * reflected_vectors, axis=2) / (projections_mag * reflected_vectors_norms))
+    phi_r = np.arccos(np.sum(projections * normal, axis=2) / projections_mag)
 
-    # Calculate theta_r the angle between the reflected vector and its projection onto the YZ plane
-    dot_product = np.sum(reflected_vectors * R_proj, axis=2)
-    theta_r = np.arccos(dot_product / (reflected_vectors_norms * R_proj_mag))
-
-    # Calculate angle between the projection of reflected vector onto the YZ plane and the z-axis
-    dot_product = np.sum(R_proj * normal, axis=2)
-    phi_r = np.arccos(dot_product / R_proj_mag)
+    # If rounding to 2 digits: accurate to 0.57 degrees = 0.01 radiant
+    # If rounding to 3 digits: accurate to 0.057 degrees = 0.001 radiant
+    accuracy = 3
+    pr0 = np.round(phi_r, accuracy) == 0
+    titr = np.round(theta_i, accuracy) == np.round(theta_r, accuracy)
+    s = np.logical_and(titr, pr0)
+    ns = np.sum(s)
+    ps = round((ns / s.size) * 100, 2)
 
     return theta_i, theta_r, phi_r
 
@@ -387,10 +402,10 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
 def main():
     save_results = False
     # Parameters
-    transmitter = np.array([1, 0.5, 400])  # Position of the transmitter
-    receiver = np.array([1.5, 1.2, 100])  # Position of the receiver
-    # transmitter = np.array([0.2, 0.2, 0.5])  # Position of the transmitter
-    # receiver = np.array([0.3, 0.6, 0.5])  # Position of the receiver
+    # transmitter = np.array([1, 0.5, 40])  # Position of the transmitter
+    # receiver = np.array([1.5, 1.2, 10])  # Position of the receiver
+    transmitter = np.array([0.2, 0.2, 0.5])  # Position of the transmitter
+    receiver = np.array([0.3, 0.6, 0.5])  # Position of the receiver
     frequency = 2.4e9  # Frequency in Hz
     c = constants.speed_of_light  # Speed of light in m/s
     wavelength = c / frequency  # Calculate wavelength
