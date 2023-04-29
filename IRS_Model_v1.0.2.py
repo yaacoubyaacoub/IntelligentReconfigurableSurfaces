@@ -193,6 +193,8 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
 
     real_phase_shifts = np.zeros(surface_size)
 
+    incidence_distances = []
+    reflection_distances = []
     rays_distances = []
 
     transmitted_power = np.power(incident_amplitude, 2) / 2
@@ -234,6 +236,8 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
             reflection_distance = np.linalg.norm(reflected_vector)
 
             # rays_distances.append(incidence_distance + reflection_distance)
+            incidence_distances.append(incidence_distance)
+            reflection_distances.append(reflection_distance)
             rays_distance = incidence_distance + reflection_distance
             rays_distances.append(rays_distance)
 
@@ -261,7 +265,9 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
 
     received_power = term1 * np.power(np.abs(term2), 2)
 
-    min_max_transmitter_distance = [np.round(np.min(rays_distances), 2), np.round(np.max(rays_distances), 2)]
+    min_max_transmitter_distance = [np.round(np.min(incidence_distances), 2), np.round(np.max(incidence_distances), 2)]
+    min_max_receiver_distance = [np.round(np.min(reflection_distances), 2), np.round(np.max(reflection_distances), 2)]
+    min_max_distance = [np.round(np.min(rays_distances), 2), np.round(np.max(rays_distances), 2)]
 
     # plot Power as function of number of elements
     if plot_power:
@@ -282,7 +288,7 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
         if save_plot:
             plt.savefig("./Results_model_v1-0-2/Received Power vs Number of Elements.png")
 
-    return real_phase_shifts, capacitance_matrix, received_power, min_max_transmitter_distance
+    return real_phase_shifts, capacitance_matrix, received_power, min_max_transmitter_distance, min_max_receiver_distance, min_max_distance
 
 
 def show_phase_shift_plots(phase_shifts, title, save_plot=False):
@@ -396,7 +402,7 @@ def main():
 
     phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
 
-    real_phase_shifts, capacitance_matrix, received_power, min_max_transmitter_distance = \
+    real_phase_shifts, capacitance_matrix, received_power, min_max_transmitter_distance, min_max_receiver_distance, min_max_distance = \
         power_received(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts, wavelength,
                        wave_number, angular_frequency, incident_amplitude, incident_phase, ni, plot_power=True,
                        save_plot=save_results)
@@ -405,8 +411,12 @@ def main():
 
     transmitted_power = np.power(incident_amplitude, 2) / 2
 
-    print(f"min NLOS distance between emitter and receiver through surface: {min_max_transmitter_distance[0]} m")
-    print(f"max NLOS distance between emitter and receiver through surface: {min_max_transmitter_distance[1]} m")
+    print(f"min LOS distance between emitter and surface through surface: {min_max_transmitter_distance[0]} m")
+    print(f"max LOS distance between emitter and surface through surface: {min_max_transmitter_distance[1]} m")
+    print(f"min LOS distance between surface and receiver through surface: {min_max_receiver_distance[0]} m")
+    print(f"max LOS distance between surface and receiver through surface: {min_max_receiver_distance[1]} m")
+    print(f"min NLOS distance between emitter and receiver through surface: {min_max_distance[0]} m")
+    print(f"max NLOS distance between emitter and receiver through surface: {min_max_distance[1]} m")
 
     print(f"transmitted power (in Watts): {transmitted_power} W")
     print(f"transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm")

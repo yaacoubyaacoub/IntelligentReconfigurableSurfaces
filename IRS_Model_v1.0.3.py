@@ -229,6 +229,8 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
 
     real_phase_shifts = np.zeros(surface_size)
 
+    incidence_distances = []
+    reflection_distances = []
     rays_distances = []
 
     transmitted_power = np.power(incident_amplitude, 2) / 2
@@ -269,6 +271,8 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
             reflection_distance = np.linalg.norm(reflected_vector)
 
             # rays_distances.append(incidence_distance + reflection_distance)
+            incidence_distances.append(incidence_distance)
+            reflection_distances.append(reflection_distance)
             rays_distance = incidence_distance + reflection_distance
             rays_distances.append(rays_distance)
 
@@ -277,15 +281,15 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
             pbar.update(1)
     pbar.close()
 
-    min_max_transmitter_distance = [np.round(np.min(rays_distances), 2), np.round(np.max(rays_distances), 2)]
+    min_max_transmitter_distance = [np.round(np.min(incidence_distances), 2), np.round(np.max(incidence_distances), 2)]
+    min_max_receiver_distance = [np.round(np.min(reflection_distances), 2), np.round(np.max(reflection_distances), 2)]
+    min_max_distance = [np.round(np.min(rays_distances), 2), np.round(np.max(rays_distances), 2)]
 
     real_theta_r, real_phi_r = calculate_real_reflected_angles(theta_i, phase_shifts, delta_x, delta_y, wave_number, ni)
 
-    # Ignoring the rays that will not hit the receiver. (±1 degrees)
-    x = real_theta_r - theoretical_theta_r
-    y = real_phi_r - theoretical_phi_r
-    mask_array = np.logical_and((np.abs(np.rad2deg(real_theta_r) - np.rad2deg(theoretical_theta_r)) < 1),
-                                (np.abs(np.rad2deg(real_phi_r) - np.rad2deg(theoretical_phi_r)) < 1))
+    # Ignoring the rays that will not hit the receiver. (±1 degrees = ±π/180 radiant)
+    mask_array = np.logical_and((np.abs(real_theta_r - theoretical_theta_r) < (np.pi / 180)),
+                                (np.abs(real_phi_r - theoretical_phi_r) < (np.pi / 180)))
 
     accurate_elements_percentage = mask_array.mean()
     print(
@@ -318,7 +322,7 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
         if save_plot:
             plt.savefig("./Results_model_v1-0-2/Received Power vs Number of Elements.png")
 
-    return real_phase_shifts, capacitance_matrix, received_power, min_max_transmitter_distance
+    return real_phase_shifts, capacitance_matrix, received_power, min_max_transmitter_distance, min_max_receiver_distance, min_max_distance
 
 
 def show_phase_shift_plots(phase_shifts, title, save_plot=False):
@@ -402,10 +406,10 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
 def main():
     save_results = False
     # Parameters
-    # transmitter = np.array([1, 0.5, 40])  # Position of the transmitter
-    # receiver = np.array([1.5, 1.2, 10])  # Position of the receiver
-    transmitter = np.array([0.2, 0.2, 0.5])  # Position of the transmitter
-    receiver = np.array([0.3, 0.6, 0.5])  # Position of the receiver
+    transmitter = np.array([1, 0.5, 500])  # Position of the transmitter
+    receiver = np.array([1.5, 1.2, 15])  # Position of the receiver
+    # transmitter = np.array([0.2, 0.2, 0.5])  # Position of the transmitter
+    # receiver = np.array([0.3, 0.6, 0.5])  # Position of the receiver
     frequency = 2.4e9  # Frequency in Hz
     c = constants.speed_of_light  # Speed of light in m/s
     wavelength = c / frequency  # Calculate wavelength
@@ -416,7 +420,8 @@ def main():
     # incident_wave_n = incident_amplitude * np.cos(w * t + incident_phase)
 
     ni = 1  # Refractive index
-    surface_size = (50, 50)  # Metasurface dimensions (M, N)
+    surface_size = (20, 55)  # Metasurface dimensions (M, N)
+    # surface_size = (50, 50)  # Metasurface dimensions (M, N)
     element_size = wavelength / 8
     element_spacing = wavelength / 8  # Element spacing in x and y
     delta = element_size + element_spacing
@@ -433,7 +438,7 @@ def main():
     dphi_dx, dphi_dy = calculate_dphi_dx_dy(theta_i, theta_r, phi_r, wave_number, ni)
     phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
 
-    real_phase_shifts, capacitance_matrix, received_power, min_max_transmitter_distance = \
+    real_phase_shifts, capacitance_matrix, received_power, min_max_transmitter_distance, min_max_receiver_distance, min_max_distance = \
         power_received(transmitter, receiver, surface_size, element_size, element_spacing, theta_i, phase_shifts, delta,
                        delta, theta_r, phi_r, wavelength, wave_number, angular_frequency, incident_amplitude,
                        incident_phase, ni, plot_power=True, save_plot=save_results)
@@ -442,8 +447,12 @@ def main():
 
     transmitted_power = np.power(incident_amplitude, 2) / 2
 
-    print(f"min NLOS distance between emitter and receiver through surface: {min_max_transmitter_distance[0]} m")
-    print(f"max NLOS distance between emitter and receiver through surface: {min_max_transmitter_distance[1]} m")
+    print(f"min LOS distance between emitter and surface through surface: {min_max_transmitter_distance[0]} m")
+    print(f"max LOS distance between emitter and surface through surface: {min_max_transmitter_distance[1]} m")
+    print(f"min LOS distance between surface and receiver through surface: {min_max_receiver_distance[0]} m")
+    print(f"max LOS distance between surface and receiver through surface: {min_max_receiver_distance[1]} m")
+    print(f"min NLOS distance between emitter and receiver through surface: {min_max_distance[0]} m")
+    print(f"max NLOS distance between emitter and receiver through surface: {min_max_distance[1]} m")
 
     print(f"transmitted power (in Watts): {transmitted_power} W")
     print(f"transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm")
