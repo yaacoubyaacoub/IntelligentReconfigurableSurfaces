@@ -325,6 +325,55 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
     return real_phase_shifts, capacitance_matrix, received_power, min_max_transmitter_distance, min_max_receiver_distance, min_max_distance
 
 
+def find_snells_angle(transmitter, receiver, normal):
+    xi, yi, zi = transmitter
+    xr, yr, zr = receiver
+
+    def f(x, y):
+        return ((x - xi) ** 2 + (y - yi) ** 2) / ((x - xr) ** 2 + (y - yr) ** 2) - (zi / zr) ** 2
+
+    # Define a grid of points to evaluate the function
+    X, Y = np.meshgrid(np.linspace(min(xi, xr), max(xi, xr), 1000), np.linspace(min(yi, yr), max(yi, yr), 1000))
+
+    # Evaluate the function on the grid
+    Z = f(X, Y)
+
+    # Find the (x, y) coordinates where the function is closest to zero
+    idx = np.argmin(np.abs(Z))
+    x, y = X.flat[idx], Y.flat[idx]
+    p0 = np.array([x, y, 0])
+
+    v1 = transmitter - p0
+    theta_i = np.arccos(np.dot(v1, normal) / np.linalg.norm(v1))
+    # v2 = receiver - p0
+    # theta_r = np.arccos(np.dot(v2, normal) / np.linalg.norm(v2))
+
+    return theta_i
+
+
+def power_without_intelligent_surface(transmitted_power, wavelength, wave_number, ni, distance, theta_i, epilon_r,
+                                      parallel_perpendicular=0):
+    sqrt_term = np.sqrt(epilon_r - np.power(np.sin(theta_i), 2))
+    reflection_coefficient_parallel = (np.cos(theta_i) - sqrt_term) / (np.cos(theta_i) + sqrt_term)
+    reflection_coefficient_perpendicular = ((epilon_r * np.cos(theta_i)) - sqrt_term) / (
+            (epilon_r * np.cos(theta_i)) + sqrt_term)
+
+    if parallel_perpendicular == 0:
+        reflection_coefficient_amplitude = abs(reflection_coefficient_parallel)
+        reflection_coefficient_phase = np.arccos(reflection_coefficient_parallel / abs(reflection_coefficient_parallel))
+        reflection_coefficient = cmath.rect(reflection_coefficient_amplitude, reflection_coefficient_phase)
+    else:
+        reflection_coefficient_amplitude = abs(reflection_coefficient_perpendicular)
+        reflection_coefficient_phase = np.arccos(
+            reflection_coefficient_perpendicular / abs(reflection_coefficient_perpendicular))
+        reflection_coefficient = cmath.rect(reflection_coefficient_amplitude, reflection_coefficient_phase)
+
+    term1 = transmitted_power * np.power((wavelength / (4 * np.pi)), 2)
+    term2 = reflection_coefficient * np.exp(1j * wave_number * ni * distance) / distance
+    received_power = term1 * np.power(np.abs(term2), 2)
+    return received_power
+
+
 def show_phase_shift_plots(phase_shifts, title, save_plot=False):
     plt.figure()
     plt.imshow(phase_shifts, cmap='viridis', origin='lower')
@@ -447,6 +496,13 @@ def main():
 
     transmitted_power = np.power(incident_amplitude, 2) / 2
 
+    original_snells_law_theta_i = find_snells_angle(transmitter, receiver, np.array([0, 0, 1]))
+    received_power_no_intelligent_surface = power_without_intelligent_surface(transmitted_power, wavelength,
+                                                                              wave_number, ni, (min_max_distance[0] +
+                                                                                                min_max_distance[
+                                                                                                    1]) / 2,
+                                                                              original_snells_law_theta_i, 5)
+
     print(f"min LOS distance between emitter and surface through surface: {min_max_transmitter_distance[0]} m")
     print(f"max LOS distance between emitter and surface through surface: {min_max_transmitter_distance[1]} m")
     print(f"min LOS distance between surface and receiver through surface: {min_max_receiver_distance[0]} m")
@@ -460,6 +516,14 @@ def main():
     print(f"Received Power (in Watts): {received_power:.2e} W")
     print(f"Received Power (in dBm): {round(10 * math.log10(received_power / 1e-3), 2)} dBm")
     print(f"Percentage Received/Transmitted Power: {((received_power / transmitted_power) * 100):.2e}%")
+
+    print(f"Original Snell's law angle: {np.round(np.degrees(original_snells_law_theta_i), 2)}")
+    print(f"Received Power without IRS (in Watts): {received_power_no_intelligent_surface:.2e} W")
+    if received_power_no_intelligent_surface != 0:
+        print(
+            f"Received Power without IRS (in dBm): {round(10 * math.log10(received_power_no_intelligent_surface / 1e-3), 2)} dBm")
+    print(
+        f"Percentage Received/Transmitted Power without IRS: {((received_power_no_intelligent_surface / transmitted_power) * 100):.2e}%")
 
     print("\nVaractors Capacitance Matrix (in picoFarad): ")
     print(np.round(np.multiply(capacitance_matrix, 1e12), 2))
