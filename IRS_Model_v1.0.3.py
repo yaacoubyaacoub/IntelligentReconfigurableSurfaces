@@ -91,11 +91,11 @@ def calculate_angles(transmitter, receiver, surface_size, element_size, element_
     # If rounding to 2 digits: accurate to 0.57 degrees = 0.01 radiant
     # If rounding to 3 digits: accurate to 0.057 degrees = 0.001 radiant
     accuracy = 3
-    pr0 = np.round(phi_r, accuracy) == 0
-    titr = np.round(theta_i, accuracy) == np.round(theta_r, accuracy)
-    s = np.logical_and(titr, pr0)
-    ns = np.sum(s)
-    ps = round((ns / s.size) * 100, 2)
+    phi_r__0 = np.round(phi_r, accuracy) == 0
+    theta_i__theta_r = np.round(theta_i, accuracy) == np.round(theta_r, accuracy)
+    original_snell_law = np.logical_and(theta_i__theta_r, phi_r__0)
+    number_original_snell_law = np.sum(original_snell_law)
+    percentage_original_snell_law = round((number_original_snell_law / original_snell_law.size) * 100, 2)
 
     return theta_i, theta_r, phi_r
 
