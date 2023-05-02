@@ -115,7 +115,6 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
     curr_x, curr_y = 0, 0
 
     visited_elements = np.zeros(dphi_dx.shape, dtype=int)
-    visited_elements[curr_y, curr_x] = 100
 
     min_visits = 0
     pbar = tqdm(total=100)
@@ -127,9 +126,9 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
         #     3 = Down
         #     4 = Up
 
-        if not ((new_direction == 2 and curr_x == 1 and curr_y == 0) or (
-                new_direction == 4 and curr_x == 0 and curr_y == 1)):
-
+        if (new_direction == 2 and curr_x == 1 and curr_y == 0) or (new_direction == 4 and curr_x == 0 and curr_y == 1):
+            curr_x, curr_y = 0, 0
+        else:
             if new_direction == 1 and curr_x < phase_shifts.shape[1] - 1:
                 # phase_shifts[curr_y, curr_x + 1] = phase_shifts[curr_y, curr_x] + delta_x * dphi_dx[curr_y, curr_x]
                 if phase_shifts[curr_y, curr_x + 1] != 0:
@@ -168,7 +167,7 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
                 curr_y -= 1
             else:
                 continue
-            visited_elements[curr_y, curr_x] += 1
+        visited_elements[curr_y, curr_x] += 1
 
         if min_visits < np.min(visited_elements):
             min_visits = np.min(visited_elements)
@@ -372,8 +371,8 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
 def main():
     save_results = False
     # Parameters
-    transmitter = np.array([1, 0.5, 400])  # Position of the transmitter
-    receiver = np.array([1.5, 1.2, 100])  # Position of the receiver
+    transmitter = np.array([1, 0.5, 4])  # Position of the transmitter
+    receiver = np.array([1.5, 1.2, 1])  # Position of the receiver
     frequency = 2.4e9  # Frequency in Hz
     c = constants.speed_of_light  # Speed of light in m/s
     wavelength = c / frequency  # Calculate wavelength

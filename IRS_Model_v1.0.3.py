@@ -118,7 +118,6 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
     curr_x, curr_y = 0, 0
 
     visited_elements = np.zeros(dphi_dx.shape, dtype=int)
-    visited_elements[curr_y, curr_x] = 100
 
     min_visits = 0
     pbar = tqdm(total=100)
@@ -130,9 +129,9 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
         #     3 = Down
         #     4 = Up
 
-        if not ((new_direction == 2 and curr_x == 1 and curr_y == 0) or (
-                new_direction == 4 and curr_x == 0 and curr_y == 1)):
-
+        if (new_direction == 2 and curr_x == 1 and curr_y == 0) or (new_direction == 4 and curr_x == 0 and curr_y == 1):
+            curr_x, curr_y = 0, 0
+        else:
             if new_direction == 1 and curr_x < phase_shifts.shape[1] - 1:
                 # phase_shifts[curr_y, curr_x + 1] = phase_shifts[curr_y, curr_x] + delta_x * dphi_dx[curr_y, curr_x]
                 if phase_shifts[curr_y, curr_x + 1] != 0:
@@ -171,7 +170,7 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
                 curr_y -= 1
             else:
                 continue
-            visited_elements[curr_y, curr_x] += 1
+        visited_elements[curr_y, curr_x] += 1
 
         if min_visits < np.min(visited_elements):
             min_visits = np.min(visited_elements)
@@ -306,7 +305,7 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
     # plot Power as function of number of elements
     if plot_power:
         received_powers_dB = 10 * np.log10(np.array(received_powers) / 1e-3)
-        gain_dB = 10 * np.log10((np.array(received_powers) / 1e-3) / transmitted_power)
+        gain_dB = 10 * np.log10((np.array(received_powers)) / transmitted_power)
         transmitted_power_dB_array = np.full_like(received_powers_dB, 10 * np.log10(transmitted_power / 1e-3))
         plt.figure()
 
@@ -326,11 +325,17 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
 
 
 def find_snells_angle(transmitter, receiver, normal):
+    """
+    theta_i = theta_r
+    ((vi.normal) / |vi|) = ((vr.normal) / |vr|)
+    (zi / |vi|) = (zr / |vr|)
+    ((x - xi)^2 + (y - yi)^2) / ((x - xr)^2 + (y - yr)^2) = (zi / zr)^2
+    """
     xi, yi, zi = transmitter
     xr, yr, zr = receiver
 
     def f(x, y):
-        return ((x - xi) ** 2 + (y - yi) ** 2) / ((x - xr) ** 2 + (y - yr) ** 2) - (zi / zr) ** 2
+        return (((x - xi) ** 2 + (y - yi) ** 2) / ((x - xr) ** 2 + (y - yr) ** 2)) - ((zi / zr) ** 2)
 
     # Define a grid of points to evaluate the function
     X, Y = np.meshgrid(np.linspace(min(xi, xr), max(xi, xr), 1000), np.linspace(min(yi, yr), max(yi, yr), 1000))
@@ -343,10 +348,10 @@ def find_snells_angle(transmitter, receiver, normal):
     x, y = X.flat[idx], Y.flat[idx]
     p0 = np.array([x, y, 0])
 
-    v1 = transmitter - p0
-    theta_i = np.arccos(np.dot(v1, normal) / np.linalg.norm(v1))
-    # v2 = receiver - p0
-    # theta_r = np.arccos(np.dot(v2, normal) / np.linalg.norm(v2))
+    vi = transmitter - p0
+    theta_i = np.arccos(np.dot(vi, normal) / np.linalg.norm(vi))
+    # vr = receiver - p0
+    # theta_r = np.arccos(np.dot(vr, normal) / np.linalg.norm(vr))
 
     return theta_i
 
@@ -455,24 +460,24 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
 def main():
     save_results = False
     # Parameters
-    transmitter = np.array([1, 0.5, 500])  # Position of the transmitter
-    receiver = np.array([1.5, 1.2, 15])  # Position of the receiver
-    # transmitter = np.array([0.2, 0.2, 0.5])  # Position of the transmitter
-    # receiver = np.array([0.3, 0.6, 0.5])  # Position of the receiver
+    transmitter = np.array([1, 0.5, 5])  # Position of the transmitter
+    receiver = np.array([1.5, 1.2, 1.5])  # Position of the receiver
+    # transmitter = np.array([0.2, 1.2, 0.5])  # Position of the transmitter
+    # receiver = np.array([0.3, 1.6, 0.5])  # Position of the receiver
     frequency = 2.4e9  # Frequency in Hz
     c = constants.speed_of_light  # Speed of light in m/s
     wavelength = c / frequency  # Calculate wavelength
     angular_frequency = 2 * math.pi * frequency
     wave_number = 2 * np.pi / wavelength
-    incident_amplitude = 1
+    incident_amplitude = 0.1
     incident_phase = math.radians(30)
     # incident_wave_n = incident_amplitude * np.cos(w * t + incident_phase)
 
     ni = 1  # Refractive index
     surface_size = (20, 55)  # Metasurface dimensions (M, N)
     # surface_size = (50, 50)  # Metasurface dimensions (M, N)
-    element_size = wavelength / 8
-    element_spacing = wavelength / 8  # Element spacing in x and y
+    element_size = wavelength / 16
+    element_spacing = wavelength / 16  # Element spacing in x and y
     delta = element_size + element_spacing
 
     surface_height = (surface_size[0] * element_size) + ((surface_size[0] - 1) * element_spacing)
@@ -510,7 +515,7 @@ def main():
     print(f"min NLOS distance between emitter and receiver through surface: {min_max_distance[0]} m")
     print(f"max NLOS distance between emitter and receiver through surface: {min_max_distance[1]} m")
 
-    print(f"transmitted power (in Watts): {transmitted_power} W")
+    print(f"transmitted power (in Watts): {transmitted_power:.2e} W")
     print(f"transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm")
     # print(f"Received Power (in milliWatts): {round(received_power * 1e3, 2)} mW")
     print(f"Received Power (in Watts): {received_power:.2e} W")
