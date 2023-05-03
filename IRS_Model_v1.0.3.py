@@ -44,32 +44,32 @@ def required_varactor_bias_voltages(c):
 
 
 def project_vector_onto_plane(vi, vr, uz):
-    # Find the normal vector of plane Pi
+    # Find the normal vector of plane of incidence Pi
     ni = np.cross(vi, uz)
 
-    # Find the normal vector of plane Pr
-    nr = np.cross(ni, uz)
-    nr = nr / np.linalg.norm(nr, axis=-1, keepdims=True)
+    # Find the normal vector of plane Pr_p perpendicular to Pi
+    nr_p = np.cross(ni, uz)
+    nr_p = nr_p / np.linalg.norm(nr_p, axis=2, keepdims=True)
 
-    # Calculate the projection of vr onto nr
-    proj_vr_on_nr = (np.expand_dims(np.sum(vr * nr, axis=2), axis=2) / np.power(
-        np.linalg.norm(nr, axis=-1, keepdims=True), 2)) * nr
+    # Calculate the projection of vr onto nr_p
+    proj_vr_on_nr_p = (np.expand_dims(np.sum(vr * nr_p, axis=2), axis=2) / np.power(
+        np.linalg.norm(nr_p, axis=2, keepdims=True), 2)) * nr_p
 
-    # Calculate the projection of vr onto plane Pr
-    proj_vr_on_pr = vr - proj_vr_on_nr
+    # Calculate the projection of vr onto plane Pr_p
+    proj_vr_on_pr_p = vr - proj_vr_on_nr_p
 
-    return proj_vr_on_pr
+    return proj_vr_on_pr_p
 
 
 def calculate_angles(transmitter, receiver, surface_size, element_size, element_spacing):
-    m_values, n_values = np.meshgrid(np.arange(surface_size[0]), np.arange(surface_size[1]), indexing='ij')
+    y_indices, x_indices = np.meshgrid(np.arange(surface_size[0]), np.arange(surface_size[1]), indexing='ij')
 
-    x_mn = (element_size / 2) + (m_values * element_spacing) + (m_values * element_size)
-    y_mn = (element_size / 2) + (n_values * element_spacing) + (n_values * element_size)
-    z_mn = np.zeros_like(x_mn)
+    x_values = (element_size / 2) + (x_indices * element_spacing) + (x_indices * element_size)
+    y_values = (element_size / 2) + (y_indices * element_spacing) + (y_indices * element_size)
+    z_values = np.zeros_like(x_values)
 
-    incident_vectors = np.stack((x_mn - transmitter[0], y_mn - transmitter[1], z_mn - transmitter[2]), axis=2)
-    reflected_vectors = np.stack((receiver[0] - x_mn, receiver[1] - y_mn, receiver[2] - z_mn), axis=2)
+    incident_vectors = np.stack((x_values - transmitter[0], y_values - transmitter[1], z_values - transmitter[2]), axis=2)
+    reflected_vectors = np.stack((receiver[0] - x_values, receiver[1] - y_values, receiver[2] - z_values), axis=2)
 
     normal = np.array([0, 0, 1])
 
@@ -79,14 +79,14 @@ def calculate_angles(transmitter, receiver, surface_size, element_size, element_
     theta_i = np.arccos(np.dot(-incident_vectors, normal) / incident_vectors_norms)
     # theta_r = np.arccos(np.dot(reflected_vectors, normal) / reflected_vectors_norms)
 
-    # "projections" are the projection vectors of reflected vectors onto plane perpendicular to incident vectors
+    # "projections" are the projection vectors of reflected vectors onto plane perpendicular to incident vectors plane
     # "theta_r" are the angles between reflected vectors and the "projections"
     # "phi_r" are the angles between projections and normal the metasurface (z axis)
     projections = project_vector_onto_plane(incident_vectors, reflected_vectors, normal)
     projections_mag = np.linalg.norm(projections, axis=2)
 
     theta_r = np.arccos(np.sum(projections * reflected_vectors, axis=2) / (projections_mag * reflected_vectors_norms))
-    phi_r = np.arccos(np.sum(projections * normal, axis=2) / projections_mag)
+    phi_r = np.arccos(np.dot(projections, normal) / projections_mag)
 
     # If rounding to 2 digits: accurate to 0.57 degrees = 0.01 radiant
     # If rounding to 3 digits: accurate to 0.057 degrees = 0.001 radiant
@@ -284,7 +284,7 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
     min_max_receiver_distance = [np.round(np.min(reflection_distances), 2), np.round(np.max(reflection_distances), 2)]
     min_max_distance = [np.round(np.min(rays_distances), 2), np.round(np.max(rays_distances), 2)]
 
-    real_theta_r, real_phi_r = calculate_real_reflected_angles(theta_i, phase_shifts, delta_x, delta_y, wave_number, ni)
+    real_theta_r, real_phi_r = calculate_real_reflected_angles(theta_i, real_phase_shifts, delta_x, delta_y, wave_number, ni)
 
     # Ignoring the rays that will not hit the receiver. (±1 degrees = ±π/180 radiant)
     mask_array = np.logical_and((np.abs(real_theta_r - theoretical_theta_r) < (np.pi / 180)),
