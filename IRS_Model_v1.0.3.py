@@ -7,6 +7,8 @@ import scipy.constants as constants
 from tqdm import tqdm
 import random
 
+shifts = None
+
 
 def reflection_coefficients(Z0, Z1_n):
     """Calculate reflection coefficients for given impedances."""
@@ -68,7 +70,8 @@ def calculate_angles(transmitter, receiver, surface_size, element_size, element_
     y_values = (element_size / 2) + (y_indices * element_spacing) + (y_indices * element_size)
     z_values = np.zeros_like(x_values)
 
-    incident_vectors = np.stack((x_values - transmitter[0], y_values - transmitter[1], z_values - transmitter[2]), axis=2)
+    incident_vectors = np.stack((x_values - transmitter[0], y_values - transmitter[1], z_values - transmitter[2]),
+                                axis=2)
     reflected_vectors = np.stack((receiver[0] - x_values, receiver[1] - y_values, receiver[2] - z_values), axis=2)
 
     normal = np.array([0, 0, 1])
@@ -120,8 +123,8 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
     visited_elements = np.zeros(dphi_dx.shape, dtype=int)
 
     min_visits = 0
-    pbar = tqdm(total=100)
-    while np.min(visited_elements) < 100:
+    pbar = tqdm(total=10)
+    while np.min(visited_elements) < 10:
         new_direction = random.randint(1, 4)
         # Directions:
         #     1 = Right (-->)
@@ -177,6 +180,9 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
             pbar.update(1)
     pbar.close()
 
+    global shifts
+    shifts = np.floor((phase_shifts + np.pi) / (2 * np.pi))
+
     phase_shifts = np.mod(phase_shifts + np.pi, 2 * np.pi) - np.pi
 
     return phase_shifts
@@ -222,7 +228,8 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
 
     Z0 = freespace_impedance()
     R_value = 1
-    L_value = 2.5e-9
+    # L_value = 2.5e-9
+    L_value = 0.35e-9
 
     capacitance_matrix = np.zeros(surface_size)
 
@@ -236,7 +243,8 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
     term1 = transmitted_power * np.power((wavelength / (4 * np.pi)), 2)
     term2 = np.zeros(surface_size, dtype=complex)
 
-    capacitance_range = np.arange(0.25e-12, 6e-12, 0.01e-12)
+    # capacitance_range = np.arange(0.25e-12, 6e-12, 0.01e-12)
+    capacitance_range = np.arange(0.2e-12, 1.5e-12, 0.01e-12)
     element_impedances = element_impedance(R_value, L_value, capacitance_range, angular_frequency)
     reflection_coeffs = reflection_coefficients(Z0, element_impedances)
     reflection_coefficients_amplitude = np.abs(reflection_coeffs)
@@ -284,7 +292,9 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
     min_max_receiver_distance = [np.round(np.min(reflection_distances), 2), np.round(np.max(reflection_distances), 2)]
     min_max_distance = [np.round(np.min(rays_distances), 2), np.round(np.max(rays_distances), 2)]
 
-    real_theta_r, real_phi_r = calculate_real_reflected_angles(theta_i, real_phase_shifts, delta_x, delta_y, wave_number, ni)
+    # real_phase_shifts1 = real_phase_shifts + shifts * 2 * np.pi
+    real_theta_r, real_phi_r = calculate_real_reflected_angles(theta_i, real_phase_shifts, delta_x, delta_y,
+                                                               wave_number, ni)
 
     # Ignoring the rays that will not hit the receiver. (±1 degrees = ±π/180 radiant)
     mask_array = np.logical_and((np.abs(real_theta_r - theoretical_theta_r) < (np.pi / 180)),
@@ -460,11 +470,11 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
 def main():
     save_results = False
     # Parameters
-    transmitter = np.array([1, 0.5, 5])  # Position of the transmitter
-    receiver = np.array([1.5, 1.2, 1.5])  # Position of the receiver
+    transmitter = np.array([1, 0.5, 7])  # Position of the transmitter
+    receiver = np.array([1.5, 1.2, 2])  # Position of the receiver
     # transmitter = np.array([0.2, 1.2, 0.5])  # Position of the transmitter
     # receiver = np.array([0.3, 1.6, 0.5])  # Position of the receiver
-    frequency = 2.4e9  # Frequency in Hz
+    frequency = 10e9  # Frequency in Hz
     c = constants.speed_of_light  # Speed of light in m/s
     wavelength = c / frequency  # Calculate wavelength
     angular_frequency = 2 * math.pi * frequency
@@ -476,8 +486,8 @@ def main():
     ni = 1  # Refractive index
     surface_size = (20, 55)  # Metasurface dimensions (M, N)
     # surface_size = (50, 50)  # Metasurface dimensions (M, N)
-    element_size = wavelength / 16
-    element_spacing = wavelength / 16  # Element spacing in x and y
+    element_size = wavelength / 4
+    element_spacing = wavelength / 4  # Element spacing in x and y
     delta = element_size + element_spacing
 
     surface_height = (surface_size[0] * element_size) + ((surface_size[0] - 1) * element_spacing)

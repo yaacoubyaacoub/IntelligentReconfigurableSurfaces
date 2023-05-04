@@ -31,12 +31,31 @@ def main():
     # Parameters
     Z0 = freespace_impedance()
     R_value = 1
-    L_value = 2.5e-9
-    wavelength = 0.125
-    # frequency = constants.speed_of_light / wavelength
-    frequency = 2.4e9  # Frequency in Hz
+
+    # 2.4GHz frequency
+    # L_value = 2.5e-9
+    # frequency = 2.4e9  # Frequency in Hz
+    # c_values = np.arange(0.01e-12, 6e-12, 0.01e-12)
+
+    # 10GHz frequency
+    L_value = 0.35e-9
+    frequency = 10e9  # Frequency in Hz
+    c_values = np.arange(0.2e-12, 1.5e-12, 0.01e-12)
+
+    # 20GHz frequency
+    # L_value = 0.2e-9
+    # frequency = 20e9  # Frequency in Hz
+    # c_values = np.arange(0.1e-12, 0.8e-12, 0.01e-12)
+
+    # 300GHz frequency
+    # L_value = 11e-12
+    # frequency = 300e9  # Frequency in Hz
+    # c_values = np.arange(15e-15, 40e-15, 0.01e-15)
+
+    wavelength = constants.speed_of_light / frequency
+    print(f"Wavelength = {round(wavelength * 1e3, 2)} mm")
+
     w = 2 * math.pi * frequency
-    c_values = np.arange(0.01e-12, 6e-12, 0.01e-12)
 
     element_impedances = element_impedance(R_value, L_value, c_values, w)
 
@@ -63,7 +82,8 @@ def main():
 
     target_phase_shift = 38  # Desired phase shift in degrees
     estimated_C = estimate_capacitance_for_phase_shift(target_phase_shift, c_values, phase_shifts)
-    print(f"Estimated capacitance value: {np.round(estimated_C * 1e12, 2)}pF")
+    # print(f"Estimated capacitance value: {np.round(estimated_C * 1e12, 2)}pF")
+    print(f"Estimated capacitance value: {np.round(estimated_C * 1e15, 2)}fF")
 
     axs[1].scatter(estimated_C, target_phase_shift, color='r', marker='o', s=20,
                    label=f'Desired Phase Shift ({target_phase_shift}°)')
