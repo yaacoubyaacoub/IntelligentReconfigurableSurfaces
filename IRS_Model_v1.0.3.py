@@ -470,7 +470,7 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
 def main():
     save_results = False
     # Parameters
-    transmitter = np.array([1, 0.5, 7])  # Position of the transmitter
+    transmitter = np.array([1, 0.5, 3])  # Position of the transmitter
     receiver = np.array([1.5, 1.2, 2])  # Position of the receiver
     # transmitter = np.array([0.2, 1.2, 0.5])  # Position of the transmitter
     # receiver = np.array([0.3, 1.6, 0.5])  # Position of the receiver
@@ -536,9 +536,13 @@ def main():
     print(f"Received Power without IRS (in Watts): {received_power_no_intelligent_surface:.2e} W")
     if received_power_no_intelligent_surface != 0:
         print(
-            f"Received Power without IRS (in dBm): {round(10 * math.log10(received_power_no_intelligent_surface / 1e-3), 2)} dBm")
+            f"Received Power without IRS (in dBm): "
+            f"{round(10 * math.log10(received_power_no_intelligent_surface / 1e-3), 2)} dBm")
     print(
         f"Percentage Received/Transmitted Power without IRS: {((received_power_no_intelligent_surface / transmitted_power) * 100):.2e}%")
+    print(
+        f"Additional received power with IRS: "
+        f"{round((10 * math.log10(received_power / 1e-3)) - (10 * math.log10(received_power_no_intelligent_surface / 1e-3)), 2)} dBm")
 
     print("\nVaractors Capacitance Matrix (in picoFarad): ")
     print(np.round(np.multiply(capacitance_matrix, 1e12), 2))
