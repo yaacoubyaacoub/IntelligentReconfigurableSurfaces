@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import scipy.constants as constants
 from tqdm import tqdm
 import random
+import Testing_finding_vectors_from_angles_theta_r_and_phi_r as cv
 
 shifts = None
 
@@ -60,7 +61,93 @@ def project_vector_onto_plane(vi, vr, uz):
     # Calculate the projection of vr onto plane Pr_p
     proj_vr_on_pr_p = vr - proj_vr_on_nr_p
 
-    return proj_vr_on_pr_p
+    return proj_vr_on_pr_p, nr_p
+
+
+def find_projected_reflection_vector(origin_points, receiver, nr_p, phi_r):
+    """
+    :param origin_points: origin of the projection of the reflected vector on plane P
+    :param receiver: the coordinates of the receiver
+    :param nr_p: normal vector to the plane P
+    :param phi_r: angle between the z-axis and the projection of the reflected vector onto P
+    :return: the reflected projection vector
+    """
+    # Projecting the receiver onto the planes perpendicular to the planes of incidence
+    reflected_vectors = receiver - origin_points
+    proj_vr_on_nr_p = (np.expand_dims(np.sum(reflected_vectors * nr_p, axis=2), axis=2) / np.power(
+        np.linalg.norm(nr_p, axis=2, keepdims=True), 2)) * nr_p
+    proj_r_on_pr_p = np.subtract(receiver, proj_vr_on_nr_p)
+
+    d = -1 * np.expand_dims(np.sum(origin_points * nr_p, axis=2), axis=2)
+    planes = np.concatenate((nr_p, d), axis=2)  # [a, b, c, d]
+
+    vz = np.cos(phi_r)
+    z2 = vz + origin_points[:, :, 2]
+
+    X = (planes[:, :, 2] * z2) + planes[:, :, 3]
+
+    A = ((planes[:, :, 0] ** 2) / (planes[:, :, 1] ** 2)) + 1
+    B = ((2 * X * planes[:, :, 0]) / (planes[:, :, 1] ** 2)) + (
+            (2 * planes[:, :, 0] * origin_points[:, :, 1]) / planes[:, :, 1]) - (2 * origin_points[:, :, 0])
+    C = ((X ** 2) / (planes[:, :, 1] ** 2)) + ((2 * X * origin_points[:, :, 1]) / planes[:, :, 1]) + (
+            origin_points[:, :, 0] ** 2) + (
+                origin_points[:, :, 1] ** 2) + (vz ** 2) - 1
+
+    sol1 = (-B + np.sqrt((B ** 2) - (4 * A * C))) / (2 * A)
+    sol2 = (-B - np.sqrt((B ** 2) - (4 * A * C))) / (2 * A)
+
+    x2 = np.where(np.isnan(sol1), sol2, np.where(np.isnan(sol2), sol1,
+                                                 np.where(origin_points[:, :, 0] > proj_r_on_pr_p[:, :, 0],
+                                                          np.minimum(sol1, sol2), np.maximum(sol1, sol2))))
+
+    y2 = (-1 / planes[:, :, 1]) * ((planes[:, :, 0] * x2) + (planes[:, :, 2] * z2) + planes[:, :, 3])
+
+    unit_reflected_projection_vector = np.stack(
+        (x2 - origin_points[:, :, 0], y2 - origin_points[:, :, 1], z2 - origin_points[:, :, 2]), axis=2)
+
+    t = (receiver[2] - origin_points[:, :, 2]) / unit_reflected_projection_vector[:, :, 2]
+
+    x = origin_points[:, :, 0] + unit_reflected_projection_vector[:, :, 0] * t
+    y = origin_points[:, :, 1] + unit_reflected_projection_vector[:, :, 1] * t
+
+    reflected_projection_vector = np.stack(
+        (x - origin_points[:, :, 0], y - origin_points[:, :, 1], receiver[2] - origin_points[:, :, 2]), axis=2)
+
+    return reflected_projection_vector
+
+
+def find_reflection_vector(origin_points, receiver, projection, theta_r):
+    """
+    :param origin_points: origin of the projection of the reflected vector on plane P
+    :param receiver: the coordinates of the receiver
+    :param projection: projection of the reflected vector onto plane P array [a, b, c]
+    :param theta_r: angle between the reflection vector and its projection onto the plane P
+    :return: the reflection vector
+    """
+    projection_magnitude = np.linalg.norm(projection, axis=2)
+    reflected_vector_magnitude = projection_magnitude / np.cos(theta_r)
+
+    zr = projection[:, :, 2]
+
+    X = reflected_vector_magnitude * projection_magnitude * np.cos(theta_r) - zr ** 2
+
+    A = ((projection[:, :, 0] ** 2) / (projection[:, :, 1] ** 2)) + 1
+    B = (-2 * X * projection[:, :, 0]) / (projection[:, :, 1] ** 2)
+    C = ((X ** 2) / (projection[:, :, 1] ** 2)) + (zr ** 2) - (reflected_vector_magnitude ** 2)
+
+    sol1 = (-B + np.sqrt((B ** 2) - (4 * A * C))) / (2 * A)
+    estimate_sol1 = sol1 + origin_points[:, :, 0]
+    sol2 = (-B - np.sqrt((B ** 2) - (4 * A * C))) / (2 * A)
+    estimate_sol2 = sol2 + origin_points[:, :, 0]
+
+    xr = np.where(np.isnan(sol1), sol2, np.where(np.isnan(sol2), sol1, np.where(
+        np.abs(estimate_sol1 - receiver[0]) < np.abs(estimate_sol2 - receiver[0]), sol1, sol2)))
+
+    yr = (X - (projection[:, :, 0] * xr)) / projection[:, :, 1]
+
+    reflected_vector = np.stack((xr, yr, zr), axis=2)
+
+    return reflected_vector
 
 
 def calculate_angles(transmitter, receiver, surface_size, element_size, element_spacing):
@@ -69,6 +156,10 @@ def calculate_angles(transmitter, receiver, surface_size, element_size, element_
     x_values = (element_size / 2) + (x_indices * element_spacing) + (x_indices * element_size)
     y_values = (element_size / 2) + (y_indices * element_spacing) + (y_indices * element_size)
     z_values = np.zeros_like(x_values)
+
+    elements_coordinates = np.stack((x_values, y_values, z_values), axis=2)
+    # incident_vectors = elements_coordinates - transmitter
+    # reflected_vectors = receiver - elements_coordinates
 
     incident_vectors = np.stack((x_values - transmitter[0], y_values - transmitter[1], z_values - transmitter[2]),
                                 axis=2)
@@ -85,11 +176,23 @@ def calculate_angles(transmitter, receiver, surface_size, element_size, element_
     # "projections" are the projection vectors of reflected vectors onto plane perpendicular to incident vectors plane
     # "theta_r" are the angles between reflected vectors and the "projections"
     # "phi_r" are the angles between projections and normal the metasurface (z axis)
-    projections = project_vector_onto_plane(incident_vectors, reflected_vectors, normal)
+    projections, nr_p = project_vector_onto_plane(incident_vectors, reflected_vectors, normal)
     projections_mag = np.linalg.norm(projections, axis=2)
 
     theta_r = np.arccos(np.sum(projections * reflected_vectors, axis=2) / (projections_mag * reflected_vectors_norms))
     phi_r = np.arccos(np.dot(projections, normal) / projections_mag)
+
+    yy, xx = 0, 0
+    proj_vect1 = cv.find_projected_reflection_vector(elements_coordinates[yy, xx], receiver, nr_p[yy, xx],
+                                                     phi_r[yy, xx])
+    ref_vec1 = cv.find_reflection_vector(elements_coordinates[yy, xx], receiver, proj_vect1, theta_r[yy, xx])
+    diffp1 = proj_vect1 - projections[yy, xx]
+    diffr1 = ref_vec1 - reflected_vectors[yy, xx]
+
+    proj_vect = find_projected_reflection_vector(elements_coordinates, receiver, nr_p, phi_r)
+    ref_vec = find_reflection_vector(elements_coordinates, receiver, proj_vect, theta_r)
+    diffp = proj_vect - projections
+    diffr = ref_vec - reflected_vectors
 
     # If rounding to 2 digits: accurate to 0.57 degrees = 0.01 radiant
     # If rounding to 3 digits: accurate to 0.057 degrees = 0.001 radiant
@@ -114,7 +217,7 @@ def calculate_dphi_dx_dy(theta_i, theta_r, phi_r, wave_number, ni):
 def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
     """
     Calculates the phase_shifts from the partial derivatives dphi_dx, dphi_dy using "Random Walk Method".
-    Random Walk in a loop that mase sure that all elements are visited at least 100 times.
+    Random Walk in a loop that make sure that all elements are visited at least 100 times.
     """
     phase_shifts = np.zeros(dphi_dx.shape)
 
