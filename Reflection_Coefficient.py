@@ -5,22 +5,51 @@ import scipy.constants as constants
 
 
 def reflection_coefficients(Z0, Z1_n):
-    """Calculate reflection coefficients for given impedances."""
+    """
+    Calculate reflection coefficients for given impedances.
+    :param Z0: impedance of freespace
+    :param Z1_n: impedance of a given surface
+    :return: reflection_coefficients of the surfaces
+    """
     return (Z1_n - Z0) / (Z1_n + Z0)
 
 
 def freespace_impedance():
+    """
+    calculates the impedance of freespace
+    Z0 = μ0 / ε0
+    ε0: Permittivity of freespace
+    μ0: Permeability of freespace
+    :return: impedance of freespace
+    """
     epsilon_0 = constants.epsilon_0
     mu_0 = constants.mu_0
     return math.sqrt(mu_0 / epsilon_0)
 
 
-def element_impedance(R, L, C, w):
-    jwL = 1j * w * L
+def element_impedance(R, L1, L2, C, w):
+    """
+    Calculates the impedance of an element of the surface.
+    Equivalent circuit of one element of the metasurface:
+                ------------L1-----------
+            ____|                       |____
+                |                       |
+                -----L2-----R-----C------
+    :param R: effective resistance of element
+    :param L1: bottom layer inductance of the element
+    :param L2: top layer inductance of the element
+    :param C: effective capacitance of an element
+    :param w: angular frequency (w = 2 * π * frequency)
+    :return: the element impedance
+    """
+    jwL1 = 1j * w * L1
+    jwL2 = 1j * w * L2
     jwC = 1j * w * C
-    eq = R + 1 / jwC
-    z = (jwL * eq) / (jwL + eq)
-    return z
+
+    node1 = jwL1
+    node2 = jwL2 + (1 / jwC) + R
+    z_eq = (node1 * node2) / (node1 + node2)
+    return z_eq
 
 
 def estimate_capacitance_for_phase_shift(target_phase_shift, c_values, phase_shifts):
@@ -33,22 +62,26 @@ def main():
     R_value = 1
 
     # 2.4GHz frequency
-    # L_value = 2.5e-9
+    # L1_value = 2.5e-9
+    # L2_value = 0.7e-9
     # frequency = 2.4e9  # Frequency in Hz
-    # c_values = np.arange(0.01e-12, 6e-12, 0.01e-12)
+    # c_values = np.arange(0.01e-12, 4e-12, 0.01e-12)
 
     # 10GHz frequency
-    L_value = 0.35e-9
+    L1_value = 0.35e-9
+    L2_value = 0.25e-9
     frequency = 10e9  # Frequency in Hz
-    c_values = np.arange(0.2e-12, 1.5e-12, 0.01e-12)
+    c_values = np.arange(0.2e-12, 0.8e-12, 0.01e-12)
 
     # 20GHz frequency
-    # L_value = 0.2e-9
+    # L1_value = 0.2e-9
+    # L2_value = 80e-12
     # frequency = 20e9  # Frequency in Hz
-    # c_values = np.arange(0.1e-12, 0.8e-12, 0.01e-12)
+    # c_values = np.arange(0.1e-12, 0.5e-12, 0.01e-12)
 
     # 300GHz frequency
-    # L_value = 11e-12
+    # L1_value = 11e-12
+    # L2_value = 1e-12
     # frequency = 300e9  # Frequency in Hz
     # c_values = np.arange(15e-15, 40e-15, 0.01e-15)
 
@@ -57,7 +90,7 @@ def main():
 
     w = 2 * math.pi * frequency
 
-    element_impedances = element_impedance(R_value, L_value, c_values, w)
+    element_impedances = element_impedance(R_value, L1_value, L2_value, c_values, w)
 
     reflection_coeffs = reflection_coefficients(Z0, element_impedances)
 
@@ -82,8 +115,9 @@ def main():
 
     target_phase_shift = 38  # Desired phase shift in degrees
     estimated_C = estimate_capacitance_for_phase_shift(target_phase_shift, c_values, phase_shifts)
-    # print(f"Estimated capacitance value: {np.round(estimated_C * 1e12, 2)}pF")
-    print(f"Estimated capacitance value: {np.round(estimated_C * 1e15, 2)}fF")
+    print(f"To achieve a phase shift of {target_phase_shift} degrees,", end=" ")
+    # print(f"the estimated capacitance value is: {np.round(estimated_C * 1e12, 2)}pF")
+    print(f"the estimated capacitance value is: {np.round(estimated_C * 1e15, 2)}fF")
 
     axs[1].scatter(estimated_C, target_phase_shift, color='r', marker='o', s=20,
                    label=f'Desired Phase Shift ({target_phase_shift}°)')

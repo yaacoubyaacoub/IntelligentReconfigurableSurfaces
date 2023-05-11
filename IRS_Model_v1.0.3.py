@@ -23,6 +23,9 @@ def reflection_coefficients(Z0, Z1_n):
 def freespace_impedance():
     """
     calculates the impedance of freespace
+    Z0 = μ0 / ε0
+    ε0: Permittivity of freespace
+    μ0: Permeability of freespace
     :return: impedance of freespace
     """
     epsilon_0 = constants.epsilon_0
@@ -30,27 +33,36 @@ def freespace_impedance():
     return math.sqrt(mu_0 / epsilon_0)
 
 
-def element_impedance(R, L, C, w):
+def element_impedance(R, L1, L2, C, w):
     """
-    Calculates the impedance of an element of the surface
-    :param R: resistance of element
-    :param L: inductance of the element
-    :param C: capacitance of an element
+    Calculates the impedance of an element of the surface.
+    Equivalent circuit of one element of the metasurface:
+                ------------L1-----------
+            ____|                       |____
+                |                       |
+                -----L2-----R-----C------
+    :param R: effective resistance of element
+    :param L1: bottom layer inductance of the element
+    :param L2: top layer inductance of the element
+    :param C: effective capacitance of an element
     :param w: angular frequency (w = 2 * π * frequency)
     :return: the element impedance
     """
-    jwL = 1j * w * L
+    jwL1 = 1j * w * L1
+    jwL2 = 1j * w * L2
     jwC = 1j * w * C
-    eq = R + 1 / jwC
-    z = (jwL * eq) / (jwL + eq)
-    return z
+
+    node1 = jwL1
+    node2 = jwL2 + (1 / jwC) + R
+    z_eq = (node1 * node2) / (node1 + node2)
+    return z_eq
 
 
 def estimate_capacitance_for_phase_shift(target_phase_shift, c_values, available_phase_shifts):
     """
     Estimate the capacitance needed for a required phase shift.
     Done by interpolation between the available phase shifts that could be realized by a given varactor.
-    these values are calculates bu setting a capacitance value to a given range realizable by the varactor, calculating
+    these values are calculates by setting a capacitance value to a given range realizable by the varactor, calculating
     the phase shift realized using each capacitance value and saving the capacitance value and their corresponding
     the phase shifts.
     :param target_phase_shift: the phase shift that we need to achieve for a given element
@@ -64,6 +76,13 @@ def estimate_capacitance_for_phase_shift(target_phase_shift, c_values, available
 def required_varactor_bias_voltages(c):
     """
     Find the bias voltage for the varactor in order to achieve the required capacitance value.
+    varactor capacitance-voltage relationship model:
+        c = c0 / ((1 + v / v0) ** m)
+            c0: capacitance at v=0
+            v0: characteristic voltage of the varactor
+            m: non-linearity factor
+            v: bias voltage applied to the varactor
+            c: varactor capacitance that corresponds to a given bias voltage v.
     :param c: required capacitance value
     :return: corresponding varactor voltage
     """
@@ -80,6 +99,7 @@ def required_varactor_bias_voltages(c):
 def calculate_normal_plane_vector(incident_vector, uz=np.array([0, 0, 1])):
     """
     Calculates the normal vectors of the planes perpendicular to the incident planes
+    where the incident plane is the plane that includes the incident vector
     :param incident_vector: array of incident vectors
     :param uz: unit vector normal to the plane of the metasurface
     :return: array of normal vector to each plane of each incident vector
@@ -202,23 +222,15 @@ def find_reflection_vector(origin_points, receiver, projection, theta_r):
     return reflected_vector
 
 
-def elements_coordinates(transmitter, receiver, surface_size, element_size, element_spacing):
+def elements_coordinates(surface_size, element_size, element_spacing):
     """
     Calculates the surface elements coordinates based on their numbers, their sizes and their spacings.
-    Computes the incidents and the reflections vectors.
-    Computes the distances between the transmitter and each element of the surface (incidents vectors norms)
-    Computes the distances between the receiver and each element of the surface (reflected vectors norms)
-    :param transmitter: the coordinates of the transmitter
-    :param receiver: the coordinates of the receiver
     :param surface_size: number of elements in both x and y directions of the surface (y_n, x_n)
     :param element_size: size of each edge of a square element
     :param element_spacing: spacing between 2 elements in both x and y directions
            (spacing between elements is the same in both directions)
-    :return: elements_coordinates: elements coordinates based on their numbers, their sizes and their spacings
-             incident_vectors: array of incident vectors
-             incident_vectors_norms: distances between the transmitter and each element of the surface
-             reflected_vectors: array of reflected vectors
-             reflected_vectors_norms: distances between the receiver and each element of the surface
+    :return: elements_coordinates_array: array containing the coordinates of each element of the surface based on
+                                         their numbers, their sizes and their spacings
     """
     y_indices, x_indices = np.meshgrid(np.arange(surface_size[0]), np.arange(surface_size[1]), indexing='ij')
 
@@ -226,15 +238,61 @@ def elements_coordinates(transmitter, receiver, surface_size, element_size, elem
     y_values = (element_size / 2) + (y_indices * element_spacing) + (y_indices * element_size)
     z_values = np.zeros_like(x_values)
 
-    elements_coordinates = np.stack((x_values, y_values, z_values), axis=2)
+    elements_coordinates_array = np.stack((x_values, y_values, z_values), axis=2)
 
-    incident_vectors = elements_coordinates - transmitter
+    return elements_coordinates_array
+
+
+def calculates_incident_reflected_vectors(transmitter, receiver, elements_coordinates_array):
+    """
+    Computes the incidents and the reflections vectors.
+    Computes the distances between the transmitter and each element of the surface (incidents vectors norms)
+    Computes the distances between the receiver and each element of the surface (reflected vectors norms)
+    :param transmitter: the coordinates of the transmitter
+    :param receiver: the coordinates of the receiver
+    :param elements_coordinates_array: array containing the coordinates of each element of the surface based on
+                                       their numbers, their sizes and their spacings
+    :return: incident_vectors: array of incident vectors
+             incident_vectors_norms: distances between the transmitter and each element of the surface
+             reflected_vectors: array of reflected vectors
+             reflected_vectors_norms: distances between the receiver and each element of the surface
+    """
+    incident_vectors = elements_coordinates_array - transmitter
     incident_vectors_norms = np.linalg.norm(incident_vectors, axis=2)
-    reflected_vectors = receiver - elements_coordinates
+    reflected_vectors = receiver - elements_coordinates_array
     reflected_vectors_norms = np.linalg.norm(reflected_vectors, axis=2)
-    rays_distances = incident_vectors_norms + reflected_vectors_norms
 
-    return elements_coordinates, incident_vectors, incident_vectors_norms, reflected_vectors, reflected_vectors_norms
+    return incident_vectors, incident_vectors_norms, reflected_vectors, reflected_vectors_norms
+
+
+def calculate_wave_travelled_distances(incidence_distances, reflection_distances):
+    """
+    Calculates the distances travelled by the waves from the transmitter to receiver through the surface.
+    :param incidence_distances: distances between the transmitter and each element of the surface
+    :param reflection_distances: distances between the receiver and each element of the surface
+    :return: rays_distances: distances between the transmitter and the receiver through each element of the surface
+             min_total_distance: min distance between the transmitter and the receiver through the surface
+             max_total_distance: max distance between the transmitter and the receiver through the surface
+             min_transmitter_surface_distance: min distance between the transmitter and the surface
+             max_transmitter_surface_distance: max distance between the transmitter and the surface
+             min_surface_receiver_distance: min distance between the surface and the receiver
+             max_surface_receiver_distance: max distance between the surface and the receiver
+    """
+    rays_distances = incidence_distances + reflection_distances
+
+    min_transmitter_surface_distance = np.round(np.min(incidence_distances), 2)
+    max_transmitter_surface_distance = np.round(np.max(incidence_distances), 2)
+
+    min_surface_receiver_distance = np.round(np.min(reflection_distances), 2)
+    max_surface_receiver_distance = np.round(np.max(reflection_distances), 2)
+
+    min_total_distance = np.round(np.min(rays_distances), 2)
+    max_total_distance = np.round(np.max(rays_distances), 2)
+    average_total_distance = np.round(np.average(rays_distances), 2)
+
+    return rays_distances, min_total_distance, max_total_distance, average_total_distance, \
+           min_transmitter_surface_distance, max_transmitter_surface_distance, \
+           min_surface_receiver_distance, max_surface_receiver_distance
 
 
 def calculate_angles(transmitter, receiver, surface_size, element_size, element_spacing):
@@ -256,26 +314,30 @@ def calculate_angles(transmitter, receiver, surface_size, element_size, element_
                      (angle between the projection the reflected vector onto the plane perpendicular to the plane
                      of incidence and the normal to the reflection surface)
     """
-    elements_coordinates_array, incident_vectors, incident_vectors_norms, reflected_vectors, reflected_vectors_norms = elements_coordinates(
-        transmitter, receiver, surface_size, element_size, element_spacing)
+    elements_coordinates_array = elements_coordinates(surface_size, element_size, element_spacing)
+    incident_vectors, incident_vectors_norms, reflected_vectors, reflected_vectors_norms = calculates_incident_reflected_vectors(
+        transmitter, receiver, elements_coordinates_array)
 
     normal = np.array([0, 0, 1])
 
     # theta_i are the angles between the incident vectors and the normal to the reflection surface
     theta_i = np.arccos(np.dot(-incident_vectors, normal) / incident_vectors_norms)
+
     # theta_r are the angles between the reflected vectors and the normal to the reflection surface
     # theta_r = np.arccos(np.dot(reflected_vectors, normal) / reflected_vectors_norms)
 
     # "projections" are the projection vectors of reflected vectors onto plane perpendicular to incident vectors plane
-    # "theta_r" are the angles between reflected vectors and the "projections"
-    # "phi_r" are the angles between projections and normal the metasurface (z axis)
     nr_p = calculate_normal_plane_vector(incident_vectors, normal)
     projections = project_vector_onto_plane(reflected_vectors, nr_p)
     projections_mag = np.linalg.norm(projections, axis=2)
 
+    # "theta_r" are the angles between reflected vectors and the "projections"
     theta_r = np.arccos(np.sum(projections * reflected_vectors, axis=2) / (projections_mag * reflected_vectors_norms))
+
+    # "phi_r" are the angles between projections and normal the metasurface (z axis)
     phi_r = np.arccos(np.dot(projections, normal) / projections_mag)
 
+    # ############################################# Used only for testing ##############################################
     # testing getting projected_vector and reflected_vector using phi_r and theta_r
     proj_vect = find_projected_reflection_vector(elements_coordinates_array, receiver, nr_p, phi_r)
     ref_vec = find_reflection_vector(elements_coordinates_array, receiver, proj_vect, theta_r)
@@ -291,6 +353,7 @@ def calculate_angles(transmitter, receiver, surface_size, element_size, element_
     original_snell_law = np.logical_and(theta_i__theta_r, phi_r__0)
     number_original_snell_law = np.sum(original_snell_law)
     percentage_original_snell_law = round((number_original_snell_law / original_snell_law.size) * 100, 2)
+    # ##################################################################################################################
 
     return theta_i, theta_r, phi_r
 
@@ -300,7 +363,7 @@ def calculate_dphi_dx_dy(theta_i, theta_r, phi_r, wave_number, ni):
     Calculates the phase gradients in both x and y directions based on snell's generalized law of reflection
     ""
     sin(θr) - sin(θi) = 1/ni*k0 * dΦ/dx
-    cos(θt)sin(φr) = 1/ni*k0 * dΦ/dy
+    cos(θr)sin(φr) = 1/ni*k0 * dΦ/dy
     ""
     :param theta_i: array of incidence angles.
                     (angle between the incidence vector and the normal to the reflection surface)
@@ -485,67 +548,68 @@ def calculate_real_reflected_angles(theta_i, phase_shifts, delta_x, delta_y, wav
     return theta_r, phi_r
 
 
-def power_received(transmitter, receiver, surface_size, element_size, element_spacing, theta_i, phase_shifts, delta_x,
-                   delta_y, theoretical_theta_r, theoretical_phi_r, wavelength, wave_number, angular_frequency,
-                   incident_amplitude, incident_phase, ni, plot_power=False, save_plot=False):
-    num_rows, num_columns = surface_size
-
+def calculate_capacitance_matrix(R_value, L1_value, L2_value, capacitance_range, phase_shifts, angular_frequency):
+    """
+    Calculates the required capacitance of each element of the surface based on the frequency of the incoming signal
+    and the phase shift that must be introduced by each element.
+    :param R_value: resistance of every element on the surface
+    :param L1_value: bottom layer inductance of every element on the surface
+    :param L2_value: top layer inductance of every element on the surface
+    :param capacitance_range: capacitance range that the varactor is able to produce
+    :param phase_shifts: 2D matrix of the required phase shift of each element of the surface
+    :param angular_frequency: w = 2 * π * frequency
+    :return: capacitance_matrix: estimated capacitance of each element of the surface based on the frequency of the
+                                 incoming signal and the required phase shift.
+    """
     Z0 = freespace_impedance()
-    R_value = 1
-    # L_value = 2.5e-9
-    L_value = 0.35e-9
+    elements_impedances = element_impedance(R_value, L1_value, L2_value, capacitance_range, angular_frequency)
+    elements_reflection_coefficients = reflection_coefficients(Z0, elements_impedances)
+    reflection_coefficients_amplitude = np.abs(elements_reflection_coefficients)
+    reflection_coefficients_phase_shifts = np.angle(elements_reflection_coefficients)
+    capacitance_matrix = estimate_capacitance_for_phase_shift(phase_shifts, capacitance_range,
+                                                              reflection_coefficients_phase_shifts)
+    return capacitance_matrix
 
-    capacitance_matrix = np.zeros(surface_size)
 
-    real_phase_shifts = np.zeros(surface_size)
+def calculate_real_phase_shifts(R_value, L1_value, L2_value, capacitance_matrix, angular_frequency):
+    """
+    Calculates the real reflection coefficients and the real phase shifts introduced by each element of the surface
+    based on the frequency of the incoming signal, and the capacitance of each element.
+    :param R_value: resistance of every element on the surface
+    :param L1_value: bottom layer inductance of every element on the surface
+    :param L2_value: top layer inductance of every element on the surface
+    :param capacitance_matrix: estimated capacitance of each element of the surface based on the frequency of the
+                               incoming signal and the required phase shift.
+    :param angular_frequency: w = 2 * π * frequency
+    :return: real_reflection_coefficients_array: 2D array of complex numbers representing the real reflection
+                                                 coefficients of each element of the surface.
+             real_phase_shifts: 2D matrix of the real phase shift introduced by each element of the surface
+    """
+    Z0 = freespace_impedance()
+    real_elements_impedance = element_impedance(R_value, L1_value, L2_value, capacitance_matrix, angular_frequency)
+    real_reflection_coefficients_array = reflection_coefficients(Z0, real_elements_impedance)
+    real_phase_shifts = np.angle(real_reflection_coefficients_array)
+    return real_reflection_coefficients_array, real_phase_shifts
 
-    elements_coordinates_array, incident_vectors, incidence_distances, reflected_vectors, reflection_distances = elements_coordinates(
-        transmitter, receiver, surface_size, element_size, element_spacing)
 
-    rays_distances = incidence_distances + reflection_distances
-
-    transmitted_power = np.power(incident_amplitude, 2) / 2
-    term1 = transmitted_power * np.power((wavelength / (4 * np.pi)), 2)
-    term2 = np.zeros(surface_size, dtype=complex)
-
-    # capacitance_range = np.arange(0.25e-12, 6e-12, 0.01e-12)
-    capacitance_range = np.arange(0.2e-12, 1.5e-12, 0.01e-12)
-    element_impedances = element_impedance(R_value, L_value, capacitance_range, angular_frequency)
-    reflection_coeffs = reflection_coefficients(Z0, element_impedances)
-    reflection_coefficients_amplitude = np.abs(reflection_coeffs)
-    reflection_coefficients_phase_shifts = np.angle(reflection_coeffs)
-
-    pbar = tqdm(total=(num_rows * num_columns), desc='Progress')
-    for y in range(num_rows):
-        for x in range(num_columns):
-            # Find the required capacitance value for the desired phase shift
-            C_n = estimate_capacitance_for_phase_shift(phase_shifts[y, x], capacitance_range,
-                                                       reflection_coefficients_phase_shifts)
-            capacitance_matrix[y, x] = C_n
-
-            # Calculate impedance for the current element
-            Z1_n = element_impedance(R_value, L_value, C_n, angular_frequency)
-
-            # Calculate reflection coefficient for the current element
-            reflection_coefficient = reflection_coefficients(Z0, Z1_n)
-            # elements_reflection_coefficients.append(reflection_coefficient)
-
-            real_phase_shifts[y, x] = cmath.phase(reflection_coefficient)
-
-            term2[y, x] = reflection_coefficient * np.exp(1j * wave_number * ni * rays_distances[y, x]) / \
-                          rays_distances[y, x]
-
-            pbar.update(1)
-    pbar.close()
-
-    min_max_transmitter_distance = [np.round(np.min(incidence_distances), 2), np.round(np.max(incidence_distances), 2)]
-    min_max_receiver_distance = [np.round(np.min(reflection_distances), 2), np.round(np.max(reflection_distances), 2)]
-    min_max_distance = [np.round(np.min(rays_distances), 2), np.round(np.max(rays_distances), 2)]
-
-    # real_phase_shifts1 = real_phase_shifts + shifts * 2 * np.pi
-    real_theta_r, real_phi_r = calculate_real_reflected_angles(theta_i, real_phase_shifts, delta_x, delta_y,
-                                                               wave_number, ni)
-
+def compute_successful_reflections(receiver, elements_coordinates_array, incident_vectors, real_theta_r, real_phi_r):
+    """
+    Compute the real trajectory of the reflected rays based on the real reflection angles (θt, φr) calculated form the
+    real phase shift introduced by each element of the metasurface.
+    Estimate if the reflected vector will be hitting the receiver antenna based on the antenna shape and dimensions
+    :param receiver: the coordinates of the receiver in space
+    :param elements_coordinates_array: array containing the coordinates of eah element of the metasurface
+    :param incident_vectors: array containing the incident vectors from the transmitter to each element of the surface
+    :param real_theta_r: theta_r: array of reflection angles.
+                                  (angle between the reflected vector and its projection onto the plane perpendicular
+                                  to the plane of incidence)
+    :param real_phi_r: array of angles of diversion from the plane of incidence.
+                       (angle between the projection the reflected vector onto the plane perpendicular to the plane of
+                       incidence and the normal to the reflection surface)
+    :return: successful_reflections: 2D boolean array where each entry represent an element of the metasurface.
+                                      - 'True': if the reflected vector was successful in hitting the receiver antenna
+                                      - 'False': if the reflected vector was misses the receiver antenna
+    """
     nr_p = calculate_normal_plane_vector(incident_vectors)
     real_projected_vectors = find_projected_reflection_vector(elements_coordinates_array, receiver, nr_p, real_phi_r)
     real_reflected_vectors = find_reflection_vector(elements_coordinates_array, receiver, real_projected_vectors,
@@ -553,29 +617,60 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
 
     real_destination_reached = real_reflected_vectors + elements_coordinates_array
 
+    # Ignoring the rays that will not hit the receiver. (±1 degrees = ±π/180 radiant)
+    # successful_reflections = np.logical_and((np.abs(real_theta_r - theoretical_theta_r) < (np.pi / 180)),
+    #                              (np.abs(real_phi_r - theoretical_phi_r) < (np.pi / 180)))
+
     # Ignoring the rays that will not hit the receiver. If the hit location is outside the antenna radius.
     # receiver_antenna_radius = 0.05  # Receiver antenna radius in meters
-    # mask_array = np.linalg.norm(receiver - real_destination_reached, axis=2) < receiver_antenna_radius
+    # successful_reflections = np.linalg.norm(receiver - real_destination_reached, axis=2) < receiver_antenna_radius
 
-    # Ignoring the rays that will not hit the receiver antenna. If the hit location is outside the rectangular antenna dimensions.
+    # Ignoring the rays that will not hit the receiver antenna.
+    # If the hit location is outside the rectangular antenna dimensions the ray will be ignored.
+    # the antenna rectangular dimensions are modeled by the ranges [x_min, x_max] and [y_min, y_max]
     antenna_width, antenna_height = 0.05, 0.1  # Receiver antenna dimensions (width, height) in meters
     antenna = [receiver[0] - antenna_width, receiver[0] + antenna_width, receiver[1] - antenna_height,
-               receiver[1] + antenna_height]  # [xmin, xmax, ymin, ymax]
+               receiver[1] + antenna_height]  # [x_min, x_max, y_min, y_max]
     x_mask = (real_destination_reached[:, :, 0] > antenna[0]) & (real_destination_reached[:, :, 0] < antenna[1])
     y_mask = (real_destination_reached[:, :, 1] > antenna[2]) & (real_destination_reached[:, :, 1] < antenna[3])
-    mask_array = x_mask & y_mask
-    accurate_elements_percentage = mask_array.mean()
+    successful_reflections = x_mask & y_mask
+    accurate_elements_percentage = successful_reflections.mean()
 
-    # Ignoring the rays that will not hit the receiver. (±1 degrees = ±π/180 radiant)
-    mask_array1 = np.logical_and((np.abs(real_theta_r - theoretical_theta_r) < (np.pi / 180)),
-                                 (np.abs(real_phi_r - theoretical_phi_r) < (np.pi / 180)))
-
-    accurate_elements_percentage1 = mask_array1.mean()
     print(
-        f"Number of elements with correct reflection: {round(accurate_elements_percentage * mask_array.size)}/{mask_array.size}")
+        f"Number of elements with correct reflection: {round(accurate_elements_percentage * successful_reflections.size)}/{successful_reflections.size}")
     print(f"Elements with correct reflection percentage: {round(accurate_elements_percentage * 100, 2)}%")
 
-    term2 = term2 * mask_array
+    return successful_reflections
+
+
+def power_received(wavelength, wave_number, incident_amplitude, incident_phase, ni, real_reflection_coefficients_array,
+                   rays_distances, successful_reflections, plot_power=False, save_plot=False):
+    """
+    Calculates the power received by the receiver antenna.
+    the calculation is based on the two ray model but ignoring the line of sight component.
+    ""
+    Pr = Pt * (λ/4π)² * (Σ(Γ(θ) * exp(j*k₀*d*nᵢ)/d))²
+    ""
+    :param wavelength: the wavelength of the transmitted signal
+    :param wave_number: the number of complete wave cycles of an electromagnetic field that exist in one meter.
+                        k0=2π/λ
+    :param incident_amplitude: the amplitude of the incident wave
+    :param incident_phase: the phase of the incident wave
+    :param ni: index of refraction of the medium in which the reflection is taking place
+    :param real_reflection_coefficients_array: 2D array of complex numbers representing the real reflection
+                                               coefficients of each element of the surface
+    :param rays_distances:  distances between the transmitter and the receiver through each element of the surface
+    :param successful_reflections: 2D boolean array where each entry represent an element of the metasurface.
+    :param plot_power: flag indicating if the power should be plotted or not
+    :param save_plot: flag indicating if the plot is saved as a png or not
+    :return: received_power: the power received by the receiver antenna
+    """
+    transmitted_power = np.power(incident_amplitude, 2) / 2
+
+    term1 = transmitted_power * np.power((wavelength / (4 * np.pi)), 2)
+
+    term2 = real_reflection_coefficients_array * np.exp(1j * wave_number * ni * rays_distances) / rays_distances
+    term2 = term2 * successful_reflections
 
     term2 = np.cumsum(term2.flatten())
     received_powers = term1 * np.power(np.abs(term2), 2)
@@ -584,24 +679,36 @@ def power_received(transmitter, receiver, surface_size, element_size, element_sp
 
     # plot Power as function of number of elements
     if plot_power:
-        received_powers_dB = 10 * np.log10(np.array(received_powers) / 1e-3)
-        gain_dB = 10 * np.log10((np.array(received_powers)) / transmitted_power)
-        transmitted_power_dB_array = np.full_like(received_powers_dB, 10 * np.log10(transmitted_power / 1e-3))
-        plt.figure()
+        plot_power_graph(transmitted_power, received_powers, save_plot)
 
-        plt.plot(transmitted_power_dB_array, label='Transmitted Power')
-        plt.plot(received_powers_dB, label='Received Power')
-        plt.plot(gain_dB, label='Gain (Pr/Pt)')
-        plt.xscale('log')
-        plt.xlabel('Number of Elements')
-        plt.ylabel('Power (in dBm)')
-        plt.legend()
-        plt.title('Received Power vs Number of Elements')
+    return received_power
 
-        if save_plot:
-            plt.savefig("./Results_model_v1-0-3/Received Power vs Number of Elements.png")
 
-    return real_phase_shifts, capacitance_matrix, received_power, min_max_transmitter_distance, min_max_receiver_distance, min_max_distance
+def plot_power_graph(transmitted_power, received_powers, save_plot):
+    """
+    Plot the transmitted power.
+    Plot the received power vs number of elements
+    :param transmitted_power: Power transmitted by the transmitter of the signal
+    :param received_powers: 1D array containing the power received by the receiver antenna based on the number of
+                            elements of the reflecting metasurface
+    :param save_plot: flag indicating if the plot is saved as a png or not
+    """
+    received_powers_dB = 10 * np.log10(np.array(received_powers) / 1e-3)
+    gain_dB = 10 * np.log10((np.array(received_powers)) / transmitted_power)
+    transmitted_power_dB_array = np.full_like(received_powers_dB, 10 * np.log10(transmitted_power / 1e-3))
+    plt.figure()
+
+    plt.plot(transmitted_power_dB_array, label='Transmitted Power')
+    plt.plot(received_powers_dB, label='Received Power')
+    plt.plot(gain_dB, label='Gain (Pr/Pt)')
+    plt.xscale('log')
+    plt.xlabel('Number of Elements')
+    plt.ylabel('Power (in dBm)')
+    plt.legend()
+    plt.title('Received Power vs Number of Elements')
+
+    if save_plot:
+        plt.savefig("./Results_model_v1-0-3/Received Power vs Number of Elements.png")
 
 
 def find_snells_angle(transmitter, receiver, normal):
@@ -725,35 +832,31 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
     ax = fig.add_subplot(111, projection='3d')
 
     # Draw transmitter and receiver
-    ax.scatter(*transmitter, color='red', label='Transmitter')
-    ax.scatter(*receiver, color='blue', label='Receiver')
+    ax.scatter(transmitter[0], transmitter[1], transmitter[2], color='red', label='Transmitter')
+    ax.scatter(receiver[0], receiver[1], receiver[2], color='blue', label='Receiver')
     # Add text labels
     ax.text(transmitter[0], transmitter[1], transmitter[2], 'Transmitter', fontsize=10, color='red')
     ax.text(receiver[0], receiver[1], receiver[2], 'Receiver', fontsize=10, color='blue')
 
+    elements_coordinates_array = elements_coordinates(surface_size, element_size, element_spacing)
+    # Convert the coordinates into flat arrays
+    x_coordinates = elements_coordinates_array[:, :, 0].flatten()
+    y_coordinates = elements_coordinates_array[:, :, 1].flatten()
+    phi_values = phi_matrix_deg.flatten()
+
+    # Create a color array from colormap
+    cmap = plt.get_cmap('viridis')
+    colors = cmap(phi_values)
+
+    # Draw IRS elements
+    ax.scatter(x_coordinates, y_coordinates, c=colors, marker='s')
+
     # Calculate the middle of the surface
     surface_middle = np.array([
-        ((surface_size[1] * element_size) + ((surface_size[0] - 1) * element_spacing)) / 2,
+        ((surface_size[1] * element_size) + ((surface_size[1] - 1) * element_spacing)) / 2,
         ((surface_size[0] * element_size) + ((surface_size[0] - 1) * element_spacing)) / 2,
         0
     ])
-
-    # Create a colormap
-    cmap = plt.get_cmap('viridis')
-
-    # Draw IRS elements
-    IRS_elements = []
-    for i in range(surface_size[0]):
-        for j in range(surface_size[1]):
-            # element = np.array([j * element_size, i * element_size, 0])
-            element = np.array(
-                [(element_size / 2) + (j * element_spacing) + (j * element_size),
-                 (element_size / 2) + (i * element_spacing) + (i * element_size), 0])
-            IRS_elements.append(element)
-
-            # Get the color from the phi_matrix
-            color = cmap(phi_matrix_deg[i, j])
-            ax.scatter(*element, color=color, marker='s')
 
     # Draw incident wave
     incident_wave = np.linspace(transmitter, surface_middle, 100)
@@ -769,6 +872,9 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
     ax.plot([normal_start[0], normal_end[0]], [normal_start[1], normal_end[1]], [normal_start[2], normal_end[2]], 'k-',
             label='Normal Vector')
 
+    # Set legend
+    ax.legend()
+
     # Set axis labels and plot limits
     ax.set_xlabel('X-axis')
     ax.set_ylabel('Y-axis')
@@ -778,9 +884,6 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
     # ax.set_xlim(-0.05, 0.5)
     # ax.set_ylim(-0.1, 0.5)
     # ax.set_zlim(0, 1)
-
-    # Set legend
-    ax.legend()
 
     # plt.show()
 
@@ -802,6 +905,19 @@ def main():
     # incident_wave_n = incident_amplitude * np.cos(w * t + incident_phase)
 
     ni = 1  # Refractive index
+
+    # Varactor Parameters
+    R_value = 1
+    # for f = 2.4GHz varactor components values
+    # L1_value = 2.5e-9
+    # L2_value = 0.7e-9
+    # capacitance_range = np.arange(0.25e-12, 6e-12, 0.01e-12)
+    # for f = 10GHz varactor components values
+    L1_value = 0.35e-9
+    L2_value = 0.25e-9
+    capacitance_range = np.arange(0.2e-12, 0.8e-12, 0.01e-12)
+
+    # Metasurface Parameters
     surface_size = (20, 55)  # Metasurface dimensions (M, N)
     # surface_size = (50, 50)  # Metasurface dimensions (M, N)
     element_size = wavelength / 4
@@ -811,37 +927,66 @@ def main():
     surface_height = (surface_size[0] * element_size) + ((surface_size[0] - 1) * element_spacing)
     surface_width = (surface_size[1] * element_size) + ((surface_size[0] - 1) * element_spacing)
     surface_area = surface_height * surface_width
-    print(f"Surface Height: {round(surface_height, 2)} m")
-    print(f"Surface Width: {round(surface_width, 2)} m")
+    print(f"Surface Height: {round(surface_height * 1e2, 2)} cm")
+    print(f"Surface Width: {round(surface_width * 1e2, 2)} cm")
     print(f"Surface Area: {round(surface_area, 2)} m²")
 
-    # calculate the phase shift needed
+    # Calculates surface elements coordinates
+    elements_coordinates_array = elements_coordinates(surface_size, element_size, element_spacing)
+
+    # Calculate Incident and Reflected vectors
+    incident_vectors, incidence_distances, reflected_vectors, reflection_distances = calculates_incident_reflected_vectors(
+        transmitter, receiver, elements_coordinates_array)
+
+    rays_distances, min_total_distance, max_total_distance, average_total_distance, \
+    min_transmitter_surface_distance, max_transmitter_surface_distance, \
+    min_surface_receiver_distance, max_surface_receiver_distance = calculate_wave_travelled_distances(
+        incidence_distances, reflection_distances)
+
+    print(f"min LOS distance between emitter and surface through surface: {min_transmitter_surface_distance} m")
+    print(f"max LOS distance between emitter and surface through surface: {max_transmitter_surface_distance} m")
+    print(f"min LOS distance between surface and receiver through surface: {min_surface_receiver_distance} m")
+    print(f"max LOS distance between surface and receiver through surface: {max_surface_receiver_distance} m")
+    print(f"min NLOS distance between emitter and receiver through surface: {min_total_distance} m")
+    print(f"max NLOS distance between emitter and receiver through surface: {max_total_distance} m")
+    print(f"average NLOS distance between emitter and receiver through surface: {average_total_distance} m")
+
+    # calculate the phase shifts needed
     theta_i, theta_r, phi_r = calculate_angles(transmitter, receiver, surface_size, element_size, element_spacing)
     dphi_dx, dphi_dy = calculate_dphi_dx_dy(theta_i, theta_r, phi_r, wave_number, ni)
     phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
 
-    real_phase_shifts, capacitance_matrix, received_power, min_max_transmitter_distance, min_max_receiver_distance, min_max_distance = \
-        power_received(transmitter, receiver, surface_size, element_size, element_spacing, theta_i, phase_shifts, delta,
-                       delta, theta_r, phi_r, wavelength, wave_number, angular_frequency, incident_amplitude,
-                       incident_phase, ni, plot_power=True, save_plot=save_results)
+    # Estimate the capacitance of each element of the surface to achieve the required phase shift
+    capacitance_matrix = calculate_capacitance_matrix(R_value, L1_value, L2_value, capacitance_range, phase_shifts,
+                                                      angular_frequency)
+    # calculate the real phase shifts
+    real_reflection_coefficients_array, real_phase_shifts = calculate_real_phase_shifts(R_value, L1_value, L2_value,
+                                                                                        capacitance_matrix,
+                                                                                        angular_frequency)
+    # real_phase_shifts1 = real_phase_shifts + shifts * 2 * np.pi
+    real_theta_r, real_phi_r = calculate_real_reflected_angles(theta_i, real_phase_shifts, delta, delta,
+                                                               wave_number, ni)
 
+    successful_reflections = compute_successful_reflections(receiver, elements_coordinates_array, incident_vectors,
+                                                            real_theta_r, real_phi_r)
+
+    # Calculate the received power
+    received_power = power_received(wavelength, wave_number, incident_amplitude, incident_phase, ni,
+                                    real_reflection_coefficients_array, rays_distances, successful_reflections,
+                                    plot_power=True, save_plot=save_results)
+
+    # Calculate the required varactor bias voltages to achieve the required capacitance
     corresponding_varactor_voltages = required_varactor_bias_voltages(capacitance_matrix)
 
     transmitted_power = np.power(incident_amplitude, 2) / 2
 
+    # Calculate the incident and the reflected angles based on the original snell's law
     original_snells_law_theta_i = find_snells_angle(transmitter, receiver, np.array([0, 0, 1]))
-    received_power_no_intelligent_surface = power_without_intelligent_surface(transmitted_power, wavelength,
-                                                                              wave_number, ni, (min_max_distance[0] +
-                                                                                                min_max_distance[
-                                                                                                    1]) / 2,
-                                                                              original_snells_law_theta_i, 5)
 
-    print(f"min LOS distance between emitter and surface through surface: {min_max_transmitter_distance[0]} m")
-    print(f"max LOS distance between emitter and surface through surface: {min_max_transmitter_distance[1]} m")
-    print(f"min LOS distance between surface and receiver through surface: {min_max_receiver_distance[0]} m")
-    print(f"max LOS distance between surface and receiver through surface: {min_max_receiver_distance[1]} m")
-    print(f"min NLOS distance between emitter and receiver through surface: {min_max_distance[0]} m")
-    print(f"max NLOS distance between emitter and receiver through surface: {min_max_distance[1]} m")
+    # calculate the power that could have been received by the receiver antenna without the metasurface
+    received_power_no_intelligent_surface = power_without_intelligent_surface(transmitted_power, wavelength,
+                                                                              wave_number, ni, average_total_distance,
+                                                                              original_snells_law_theta_i, 5)
 
     print(f"transmitted power (in Watts): {transmitted_power:.2e} W")
     print(f"transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm")
@@ -871,38 +1016,40 @@ def main():
 
     if save_results:
         results_file = open("./Results_model_v1-0-3/results.txt", "w")
-        results_file.write(f"Incident Signal Wavelength: {round(wavelength, 3)} m\n")
+        results_file.write(f"Incident Signal Wavelength: {round(wavelength * 1e3, 3)} mm\n")
         results_file.write(f"Surface Number of Elements: {surface_size}\n")
-        results_file.write(f"Surface Elements Sizes: {round(element_size, 3)} m\n")
-        results_file.write(f"Surface Elements spacings: {round(element_spacing, 3)} m\n")
-        results_file.write(f"Surface Height: {round(surface_height, 2)} m\n")
-        results_file.write(f"Surface Width: {round(surface_width, 2)} m\n")
+        results_file.write(f"Surface Elements Sizes: {round(element_size * 1e3, 3)} mm\n")
+        results_file.write(f"Surface Elements spacings: {round(element_spacing * 1e3, 3)} mm\n")
+        results_file.write(f"Surface Height: {round(surface_height * 1e2, 2)} cm\n")
+        results_file.write(f"Surface Width: {round(surface_width * 1e2, 2)} cm\n")
         results_file.write(f"Surface Area: {round(surface_area, 2)} m²\n")
         results_file.write(
-            f"min LOS distance between emitter and surface through surface: {min_max_transmitter_distance[0]} m\n")
+            f"min LOS distance between emitter and surface through surface: {min_transmitter_surface_distance} m\n")
         results_file.write(
-            f"max LOS distance between emitter and surface through surface: {min_max_transmitter_distance[1]} m\n")
+            f"max LOS distance between emitter and surface through surface: {max_transmitter_surface_distance} m\n")
         results_file.write(
-            f"min LOS distance between surface and receiver through surface: {min_max_receiver_distance[0]} m\n")
+            f"min LOS distance between surface and receiver through surface: {min_surface_receiver_distance} m\n")
         results_file.write(
-            f"max LOS distance between surface and receiver through surface: {min_max_receiver_distance[1]} m\n")
+            f"max LOS distance between surface and receiver through surface: {max_surface_receiver_distance} m\n")
         results_file.write(
-            f"min NLOS distance between emitter and receiver through surface: {min_max_distance[0]} m\n")
+            f"min NLOS distance between emitter and receiver through surface: {min_total_distance} m\n")
         results_file.write(
-            f"max NLOS distance between emitter and receiver through surface: {min_max_distance[1]} m\n")
-        results_file.write(f"transmitted power (in Watts): {transmitted_power} W\n")
+            f"max NLOS distance between emitter and receiver through surface: {max_total_distance} m\n")
+        results_file.write(
+            f"average NLOS distance between emitter and receiver through surface: {average_total_distance} m\n")
+        results_file.write(f"transmitted power (in Watts): {transmitted_power:.2e} W\n")
         results_file.write(f"transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm\n")
         results_file.write(f"Received Power (in Watts): {received_power:.2e} W\n")
         results_file.write(f"Received Power (in dBm): {round(10 * math.log10(received_power / 1e-3), 2)} dBm\n")
 
         results_file.write(f"Original Snell's law angle: {np.round(np.degrees(original_snells_law_theta_i), 2)}\n")
-        results_file.write(f"Received Power without IRS (in Watts): {received_power_no_intelligent_surface:.2e} W\n")
+
         if received_power_no_intelligent_surface != 0:
+            results_file.write(
+                f"Received Power without IRS (in Watts): {received_power_no_intelligent_surface:.2e} W\n")
             results_file.write(
                 f"Received Power without IRS (in dBm): "
                 f"{round(10 * math.log10(received_power_no_intelligent_surface / 1e-3), 2)} dBm\n")
-            results_file.write(
-                f"Percentage Received/Transmitted Power without IRS: {((received_power_no_intelligent_surface / transmitted_power) * 100):.2e}%\n")
             results_file.write(
                 f"Additional received power with IRS: "
                 f"{round((10 * math.log10(received_power / 1e-3)) - (10 * math.log10(received_power_no_intelligent_surface / 1e-3)), 2)} dBm\n")
@@ -910,9 +1057,9 @@ def main():
             results_file.write("No received power without the intelligent metasurface.\n")
         results_file.close()
 
-        np.savetxt("./Results_model_v1-0-3/required_phase_shifts(in degrees).csv", np.degrees(phase_shifts),
+        np.savetxt("./Results_model_v1-0-3/required_phase_shifts(in degrees).csv", np.rad2deg(phase_shifts),
                    delimiter=",")
-        np.savetxt("./Results_model_v1-0-3/real_phase_shifts(in degrees).csv", np.degrees(real_phase_shifts),
+        np.savetxt("./Results_model_v1-0-3/real_phase_shifts(in degrees).csv", np.rad2deg(real_phase_shifts),
                    delimiter=",")
         np.savetxt("./Results_model_v1-0-3/varactors_capacitance_matrix(in picoFarad).csv",
                    np.round(np.multiply(capacitance_matrix, 1e12), 2),
@@ -921,9 +1068,9 @@ def main():
                    corresponding_varactor_voltages,
                    delimiter=",")
 
-    show_phase_shift_plots(np.degrees(phase_shifts), "Required Phase Shifts", save_plot=save_results)
-    show_phase_shift_plots(np.degrees(real_phase_shifts), "Real Phase Shifts", save_plot=save_results)
-    # draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts)
+    show_phase_shift_plots(np.rad2deg(phase_shifts), "Required Phase Shifts", save_plot=save_results)
+    show_phase_shift_plots(np.rad2deg(real_phase_shifts), "Real Phase Shifts", save_plot=save_results)
+    draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts)
 
     plt.show()
 
