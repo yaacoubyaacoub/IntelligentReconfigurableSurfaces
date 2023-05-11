@@ -410,9 +410,10 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
 
     visited_elements = np.zeros(dphi_dx.shape, dtype=int)
 
-    min_visits = 0
-    pbar = tqdm(total=10)
-    while np.min(visited_elements) < 10:
+    current_min_visits = 0
+    target_min_visits = 10
+    pbar = tqdm(total=target_min_visits)
+    while np.min(visited_elements) < target_min_visits:
         new_direction = random.randint(1, 4)
         # Directions:
         #     1 = Right (-->)
@@ -463,8 +464,8 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
                 continue
         visited_elements[curr_y, curr_x] += 1
 
-        if min_visits < np.min(visited_elements):
-            min_visits = np.min(visited_elements)
+        if current_min_visits < np.min(visited_elements):
+            current_min_visits = np.min(visited_elements)
             pbar.update(1)
     pbar.close()
 
@@ -1070,6 +1071,7 @@ def main():
 
     show_phase_shift_plots(np.rad2deg(phase_shifts), "Required Phase Shifts", save_plot=save_results)
     show_phase_shift_plots(np.rad2deg(real_phase_shifts), "Real Phase Shifts", save_plot=save_results)
+    show_phase_shift_plots(np.rad2deg(phase_shifts - real_phase_shifts), "Difference")
     draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts)
 
     plt.show()
