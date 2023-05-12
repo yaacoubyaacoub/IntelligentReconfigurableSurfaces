@@ -483,13 +483,13 @@ def gradient_2d_periodic(f, delta_x=1.0, delta_y=1.0):
     taking into account the [-π π] periodicity of the function; when calculating the difference between 2 values of
     the function, we will perform modulo [-π π] to the result.
     ""
-    x=0: df/dx = (f(x+1) - f(x))/Δx
-    x=-1: df/dx = (f(x) - f(x-1))/Δx                    (x=-1 means the last x value of the array)
-    x=[1,...,-2]: df/dx = (f(x+1) - f(x-1))/2*Δx        (x=-2 means the value before the last x of the array)
+    x=0: δf/δx = (f(x+1,y) - f(x,y))/Δx
+    x=-1: δf/δx = (f(x,y) - f(x-1,y))/Δx                    (x=-1 means the last x value of the array)
+    x=[1,...,-2]: δf/δx = (f(x+1,y) - f(x-1,y))/2*Δx        (x=-2 means the value before the last x of the array)
 
-    y=0: df/dy = (f(y+1) - f(x))/Δy
-    y=-1: df/dy = (f(y) - f(y-1))/Δy                    (y=-1 means the last y value of the array)
-    y=[1,...,-2]: df/dy = (f(y+1) - f(y-1))/2*Δy        (y=-2 means the value before the last y of the array)
+    y=0: δf/δy = (f(x,y+1) - f(x,y))/Δy
+    y=-1: δf/δy = (f(x,y) - f(x,y-1))/Δy                    (y=-1 means the last y value of the array)
+    y=[1,...,-2]: δf/δy = (f(x,y+1) - f(x,y-1))/2*Δy        (y=-2 means the value before the last y of the array)
     ""
     :param f: the function to derive in x and y directions
     :param delta_x: the difference between an element and the next one in the x direction
@@ -572,10 +572,11 @@ def calculate_capacitance_matrix(R_value, L1_value, L2_value, capacitance_range,
                                  incoming signal and the required phase shift.
     """
     Z0 = freespace_impedance()
-    elements_impedances = element_impedance(R_value, L1_value, L2_value, capacitance_range, angular_frequency)
-    elements_reflection_coefficients = reflection_coefficients(Z0, elements_impedances)
-    reflection_coefficients_amplitude = np.abs(elements_reflection_coefficients)
-    reflection_coefficients_phase_shifts = np.angle(elements_reflection_coefficients)
+    elements_achievable_impedances = element_impedance(R_value, L1_value, L2_value, capacitance_range,
+                                                       angular_frequency)
+    elements_achievable_reflection_coefficients = reflection_coefficients(Z0, elements_achievable_impedances)
+    reflection_coefficients_amplitude = np.abs(elements_achievable_reflection_coefficients)
+    reflection_coefficients_phase_shifts = np.angle(elements_achievable_reflection_coefficients)
     capacitance_matrix = estimate_capacitance_for_phase_shift(phase_shifts, capacitance_range,
                                                               reflection_coefficients_phase_shifts)
     return capacitance_matrix
@@ -925,7 +926,7 @@ def main():
     # for f = 10GHz varactor components values
     L1_value = 0.35e-9
     L2_value = 0.25e-9
-    capacitance_range = np.arange(0.2e-12, 0.8e-12, 0.01e-12)
+    capacitance_range = np.arange(0.2e-12, 0.8e-12, 0.001e-12)
 
     # Metasurface Parameters
     surface_size = (20, 55)  # Metasurface dimensions (M, N)
@@ -1080,7 +1081,8 @@ def main():
 
     show_phase_shift_plots(np.rad2deg(phase_shifts), "Required Phase Shifts", save_plot=save_results)
     show_phase_shift_plots(np.rad2deg(real_phase_shifts), "Real Phase Shifts", save_plot=save_results)
-    show_phase_shift_plots(np.rad2deg(np.mod(phase_shifts - real_phase_shifts + np.pi, 2 * np.pi) - np.pi), "Difference")
+    show_phase_shift_plots(np.rad2deg(np.mod(phase_shifts - real_phase_shifts + np.pi, 2 * np.pi) - np.pi),
+                           "Difference")
     draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts)
 
     plt.show()

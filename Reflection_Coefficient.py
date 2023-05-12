@@ -71,19 +71,19 @@ def main():
     L1_value = 0.35e-9
     L2_value = 0.25e-9
     frequency = 10e9  # Frequency in Hz
-    c_values = np.arange(0.2e-12, 0.8e-12, 0.01e-12)
+    c_values = np.arange(0.2e-12, 0.8e-12, 0.001e-12)
 
     # 20GHz frequency
     # L1_value = 0.2e-9
     # L2_value = 80e-12
     # frequency = 20e9  # Frequency in Hz
-    # c_values = np.arange(0.1e-12, 0.5e-12, 0.01e-12)
+    # c_values = np.arange(0.1e-12, 0.5e-12, 0.001e-12)
 
     # 300GHz frequency
     # L1_value = 11e-12
     # L2_value = 1e-12
     # frequency = 300e9  # Frequency in Hz
-    # c_values = np.arange(15e-15, 40e-15, 0.01e-15)
+    # c_values = np.arange(15e-15, 40e-15, 0.001e-15)
 
     wavelength = constants.speed_of_light / frequency
     print(f"Wavelength = {round(wavelength * 1e3, 2)} mm")
