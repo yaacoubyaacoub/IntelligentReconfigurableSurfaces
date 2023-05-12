@@ -647,11 +647,7 @@ def compute_successful_reflections(receiver, elements_coordinates_array, inciden
     successful_reflections = x_mask & y_mask
     accurate_elements_percentage = successful_reflections.mean()
 
-    print(
-        f"Number of elements with correct reflection: {round(accurate_elements_percentage * successful_reflections.size)}/{successful_reflections.size}")
-    print(f"Elements with correct reflection percentage: {round(accurate_elements_percentage * 100, 2)}%")
-
-    return successful_reflections
+    return successful_reflections, accurate_elements_percentage
 
 
 def power_received(wavelength, wave_number, incident_amplitude, incident_phase, ni, real_reflection_coefficients_array,
@@ -978,8 +974,10 @@ def main():
     real_theta_r, real_phi_r = calculate_real_reflected_angles(theta_i, real_phase_shifts, delta, delta,
                                                                wave_number, ni)
 
-    successful_reflections = compute_successful_reflections(receiver, elements_coordinates_array, incident_vectors,
-                                                            real_theta_r, real_phi_r)
+    successful_reflections, accurate_elements_percentage = compute_successful_reflections(receiver,
+                                                                                          elements_coordinates_array,
+                                                                                          incident_vectors,
+                                                                                          real_theta_r, real_phi_r)
 
     # Calculate the received power
     received_power = power_received(wavelength, wave_number, incident_amplitude, incident_phase, ni,
@@ -1006,6 +1004,10 @@ def main():
     print(f"Received Power (in dBm): {round(10 * math.log10(received_power / 1e-3), 2)} dBm")
     print(f"Percentage Received/Transmitted Power: {((received_power / transmitted_power) * 100):.2e}%")
 
+    print("Number of elements with correct reflection: "
+          f"{round(accurate_elements_percentage * successful_reflections.size)}/{successful_reflections.size}")
+    print(f"Elements with correct reflection percentage: {round(accurate_elements_percentage * 100, 2)}%")
+
     print(f"Original Snell's law angle: {np.round(np.degrees(original_snells_law_theta_i), 2)}")
     print(f"Received Power without IRS (in Watts): {received_power_no_intelligent_surface:.2e} W")
     if received_power_no_intelligent_surface != 0:
@@ -1013,7 +1015,8 @@ def main():
             f"Received Power without IRS (in dBm): "
             f"{round(10 * math.log10(received_power_no_intelligent_surface / 1e-3), 2)} dBm")
         print(
-            f"Percentage Received/Transmitted Power without IRS: {((received_power_no_intelligent_surface / transmitted_power) * 100):.2e}%")
+            f"Percentage Received/Transmitted Power without IRS: "
+            f"{((received_power_no_intelligent_surface / transmitted_power) * 100):.2e}%")
         print(
             f"Additional received power with IRS: "
             f"{round((10 * math.log10(received_power / 1e-3)) - (10 * math.log10(received_power_no_intelligent_surface / 1e-3)), 2)} dBm")
@@ -1052,6 +1055,11 @@ def main():
         results_file.write(f"transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm\n")
         results_file.write(f"Received Power (in Watts): {received_power:.2e} W\n")
         results_file.write(f"Received Power (in dBm): {round(10 * math.log10(received_power / 1e-3), 2)} dBm\n")
+
+        results_file.write("Number of elements with correct reflection: "
+                           f"{round(accurate_elements_percentage * successful_reflections.size)}/{successful_reflections.size}\n")
+        results_file.write(
+            f"Elements with correct reflection percentage: {round(accurate_elements_percentage * 100, 2)}%\n")
 
         results_file.write(f"Original Snell's law angle: {np.round(np.degrees(original_snells_law_theta_i), 2)}\n")
 
