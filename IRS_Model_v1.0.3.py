@@ -896,6 +896,7 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
 
 
 def main():
+    print_results = True
     save_results = True
     # Parameters
     transmitter = np.array([1, 0.5, 3])  # Position of the transmitter
@@ -934,9 +935,6 @@ def main():
     surface_height = (surface_size[0] * element_size) + ((surface_size[0] - 1) * element_spacing)
     surface_width = (surface_size[1] * element_size) + ((surface_size[0] - 1) * element_spacing)
     surface_area = surface_height * surface_width
-    print(f"Surface Height: {round(surface_height * 1e2, 2)} cm")
-    print(f"Surface Width: {round(surface_width * 1e2, 2)} cm")
-    print(f"Surface Area: {round(surface_area, 2)} m²")
 
     # Calculates surface elements coordinates
     elements_coordinates_array = elements_coordinates(surface_size, element_size, element_spacing)
@@ -944,19 +942,11 @@ def main():
     # Calculate Incident and Reflected vectors
     incident_vectors, incidence_distances, reflected_vectors, reflection_distances = calculates_incident_reflected_vectors(
         transmitter, receiver, elements_coordinates_array)
-
+    # Calculates ray travelled distances
     rays_distances, min_total_distance, max_total_distance, average_total_distance, \
     min_transmitter_surface_distance, max_transmitter_surface_distance, \
     min_surface_receiver_distance, max_surface_receiver_distance = calculate_wave_travelled_distances(
         incidence_distances, reflection_distances)
-
-    print(f"min LOS distance between emitter and surface through surface: {min_transmitter_surface_distance} m")
-    print(f"max LOS distance between emitter and surface through surface: {max_transmitter_surface_distance} m")
-    print(f"min LOS distance between surface and receiver through surface: {min_surface_receiver_distance} m")
-    print(f"max LOS distance between surface and receiver through surface: {max_surface_receiver_distance} m")
-    print(f"min NLOS distance between emitter and receiver through surface: {min_total_distance} m")
-    print(f"max NLOS distance between emitter and receiver through surface: {max_total_distance} m")
-    print(f"average NLOS distance between emitter and receiver through surface: {average_total_distance} m")
 
     # calculate the phase shifts needed
     theta_i, theta_r, phi_r = calculate_angles(transmitter, receiver, surface_size, element_size, element_spacing)
@@ -996,37 +986,6 @@ def main():
     received_power_no_intelligent_surface = power_without_intelligent_surface(transmitted_power, wavelength,
                                                                               wave_number, ni, average_total_distance,
                                                                               original_snells_law_theta_i, 5)
-
-    print(f"transmitted power (in Watts): {transmitted_power:.2e} W")
-    print(f"transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm")
-    # print(f"Received Power (in milliWatts): {round(received_power * 1e3, 2)} mW")
-    print(f"Received Power (in Watts): {received_power:.2e} W")
-    print(f"Received Power (in dBm): {round(10 * math.log10(received_power / 1e-3), 2)} dBm")
-    print(f"Percentage Received/Transmitted Power: {((received_power / transmitted_power) * 100):.2e}%")
-
-    print("Number of elements with correct reflection: "
-          f"{round(accurate_elements_percentage * successful_reflections.size)}/{successful_reflections.size}")
-    print(f"Elements with correct reflection percentage: {round(accurate_elements_percentage * 100, 2)}%")
-
-    print(f"Original Snell's law angle: {np.round(np.degrees(original_snells_law_theta_i), 2)}")
-    print(f"Received Power without IRS (in Watts): {received_power_no_intelligent_surface:.2e} W")
-    if received_power_no_intelligent_surface != 0:
-        print(
-            f"Received Power without IRS (in dBm): "
-            f"{round(10 * math.log10(received_power_no_intelligent_surface / 1e-3), 2)} dBm")
-        print(
-            f"Percentage Received/Transmitted Power without IRS: "
-            f"{((received_power_no_intelligent_surface / transmitted_power) * 100):.2e}%")
-        print(
-            f"Additional received power with IRS: "
-            f"{round((10 * math.log10(received_power / 1e-3)) - (10 * math.log10(received_power_no_intelligent_surface / 1e-3)), 2)} dBm")
-    else:
-        print("No received power without the intelligent metasurface.")
-
-    print("\nVaractors Capacitance Matrix (in picoFarad): ")
-    print(np.round(np.multiply(capacitance_matrix, 1e12), 2))
-    print("\nRequired Varactor Bias Voltages (in Volts):")
-    print(corresponding_varactor_voltages)
 
     if save_results:
         results_file = open("./Results_model_v1-0-3/results.txt", "w")
@@ -1087,13 +1046,57 @@ def main():
                    corresponding_varactor_voltages,
                    delimiter=",")
 
-    show_phase_shift_plots(np.rad2deg(phase_shifts), "Required Phase Shifts", save_plot=save_results)
-    show_phase_shift_plots(np.rad2deg(real_phase_shifts), "Real Phase Shifts", save_plot=save_results)
-    show_phase_shift_plots(np.rad2deg(np.mod(phase_shifts - real_phase_shifts + np.pi, 2 * np.pi) - np.pi),
-                           "Difference")
-    draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts)
+    if print_results:
+        print(f"Surface Height: {round(surface_height * 1e2, 2)} cm")
+        print(f"Surface Width: {round(surface_width * 1e2, 2)} cm")
+        print(f"Surface Area: {round(surface_area, 2)} m²")
 
-    plt.show()
+        print(f"min LOS distance between emitter and surface through surface: {min_transmitter_surface_distance} m")
+        print(f"max LOS distance between emitter and surface through surface: {max_transmitter_surface_distance} m")
+        print(f"min LOS distance between surface and receiver through surface: {min_surface_receiver_distance} m")
+        print(f"max LOS distance between surface and receiver through surface: {max_surface_receiver_distance} m")
+        print(f"min NLOS distance between emitter and receiver through surface: {min_total_distance} m")
+        print(f"max NLOS distance between emitter and receiver through surface: {max_total_distance} m")
+        print(f"average NLOS distance between emitter and receiver through surface: {average_total_distance} m")
+
+        print(f"transmitted power (in Watts): {transmitted_power:.2e} W")
+        print(f"transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm")
+        # print(f"Received Power (in milliWatts): {round(received_power * 1e3, 2)} mW")
+        print(f"Received Power (in Watts): {received_power:.2e} W")
+        print(f"Received Power (in dBm): {round(10 * math.log10(received_power / 1e-3), 2)} dBm")
+        print(f"Percentage Received/Transmitted Power: {((received_power / transmitted_power) * 100):.2e}%")
+
+        print("Number of elements with correct reflection: "
+              f"{round(accurate_elements_percentage * successful_reflections.size)}/{successful_reflections.size}")
+        print(f"Elements with correct reflection percentage: {round(accurate_elements_percentage * 100, 2)}%")
+
+        print(f"Original Snell's law angle: {np.round(np.degrees(original_snells_law_theta_i), 2)}")
+        print(f"Received Power without IRS (in Watts): {received_power_no_intelligent_surface:.2e} W")
+        if received_power_no_intelligent_surface != 0:
+            print(
+                f"Received Power without IRS (in dBm): "
+                f"{round(10 * math.log10(received_power_no_intelligent_surface / 1e-3), 2)} dBm")
+            print(
+                f"Percentage Received/Transmitted Power without IRS: "
+                f"{((received_power_no_intelligent_surface / transmitted_power) * 100):.2e}%")
+            print(
+                f"Additional received power with IRS: "
+                f"{round((10 * math.log10(received_power / 1e-3)) - (10 * math.log10(received_power_no_intelligent_surface / 1e-3)), 2)} dBm")
+        else:
+            print("No received power without the intelligent metasurface.")
+
+        print("\nVaractors Capacitance Matrix (in picoFarad): ")
+        print(np.round(np.multiply(capacitance_matrix, 1e12), 2))
+        print("\nRequired Varactor Bias Voltages (in Volts):")
+        print(corresponding_varactor_voltages)
+
+        show_phase_shift_plots(np.rad2deg(phase_shifts), "Required Phase Shifts", save_plot=save_results)
+        show_phase_shift_plots(np.rad2deg(real_phase_shifts), "Real Phase Shifts", save_plot=save_results)
+        show_phase_shift_plots(np.rad2deg(np.mod(phase_shifts - real_phase_shifts + np.pi, 2 * np.pi) - np.pi),
+                               "Difference")
+        draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts)
+
+        plt.show()
 
 
 if __name__ == "__main__":
