@@ -482,6 +482,15 @@ def gradient_2d_periodic(f, delta_x=1.0, delta_y=1.0):
     Calculates the gradient of a function f.
     taking into account the [-π π] periodicity of the function; when calculating the difference between 2 values of
     the function, we will perform modulo [-π π] to the result.
+    ""
+    x=0: df/dx = (f(x+1) - f(x))/Δx
+    x=-1: df/dx = (f(x) - f(x-1))/Δx                    (x=-1 means the last x value of the array)
+    x=[1,...,-2]: df/dx = (f(x+1) - f(x-1))/2*Δx        (x=-2 means the value before the last x of the array)
+
+    y=0: df/dy = (f(y+1) - f(x))/Δy
+    y=-1: df/dy = (f(y) - f(y-1))/Δy                    (y=-1 means the last y value of the array)
+    y=[1,...,-2]: df/dy = (f(y+1) - f(y-1))/2*Δy        (y=-2 means the value before the last y of the array)
+    ""
     :param f: the function to derive in x and y directions
     :param delta_x: the difference between an element and the next one in the x direction
     :param delta_y: the difference between an element and the next one in the y direction
@@ -1071,7 +1080,7 @@ def main():
 
     show_phase_shift_plots(np.rad2deg(phase_shifts), "Required Phase Shifts", save_plot=save_results)
     show_phase_shift_plots(np.rad2deg(real_phase_shifts), "Real Phase Shifts", save_plot=save_results)
-    show_phase_shift_plots(np.rad2deg(phase_shifts - real_phase_shifts), "Difference")
+    show_phase_shift_plots(np.rad2deg(np.mod(phase_shifts - real_phase_shifts + np.pi, 2 * np.pi) - np.pi), "Difference")
     draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts)
 
     plt.show()
