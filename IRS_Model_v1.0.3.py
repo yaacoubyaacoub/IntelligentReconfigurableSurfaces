@@ -7,8 +7,6 @@ import scipy.constants as constants
 from tqdm import tqdm
 import random
 
-shifts = None
-
 
 def reflection_coefficients(Z0, Z1_n):
     """
@@ -469,12 +467,83 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
             pbar.update(1)
     pbar.close()
 
-    global shifts
-    shifts = np.floor((phase_shifts + np.pi) / (2 * np.pi))
-
     phase_shifts = np.mod(phase_shifts + np.pi, 2 * np.pi) - np.pi
 
     return phase_shifts
+
+
+# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy) using Random Walk
+def calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta_x, delta_y):
+    """
+    Calculates the phase_shifts from the partial derivatives dphi_dx, dphi_dy.
+    Create 2 phase_shifts arrays (phase_shifts_x, phase_shifts_y) one calculated based on dphi_dx and the other based
+    on dphi_dy.
+    In both phase_shifts arrays, the fist column (x=0) is always calculated based on dphi_dx and delta_x.
+    In both phase_shifts arrays, the fist row (y=0) is always calculated based on dphi_dy and delta_y.
+    then completing both array by using the following equations:
+    ""
+    x=0: f(x+1,y) = (δf/δx * Δx) + f(x,y)
+    x=-1: f(x,y) = (δf/δx * Δx) + f(x-1,y)                  (x=-1 means the last x value of the array)
+    x=[1,...,-2]: f(x+1,y) = (δf/δx * 2*Δx) + f(x-1,y)      (x=-2 means the value before the last x of the array)
+
+    y=0: f(x,y+1) = (δf/δy * Δy) + f(x,y)
+    y=-1: f(x,y) = (δf/δy * Δy) + f(x,y-1)                  (y=-1 means the last y value of the array)
+    y=[1,...,-2]: f(x,y+1) = (δf/δx * 2*Δx) + f(x,y-1)      (y=-2 means the value before the last y of the array)
+    ""
+    Then based on the first column (x=0) and the first row (y=0) both phase_shifts arrays
+    (phase_shifts_x, phase_shifts_y) should theoretically be the same, but due to estimation error we will have some
+    differences. So finally to calculate the final phase shift array we take the average of both phase_shifts arrays
+    (phase_shifts_x, phase_shifts_y) by adding them together (on an element basis) and then dividing by 2.
+    "" phase_shifts = (phase_shifts_x + phase_shifts_y) / 2 ""
+    :param dphi_dx: the gradient of the phase in the x direction (based on snell's generalized law of reflection)
+    :param dphi_dy: the gradient of the phase in the y direction (based on snell's generalized law of reflection)
+    :param delta_x: the difference between an element and the next one in the x direction, taken between the middle of
+                    two adjacent elements. element sizes and spacing are the same between every two adjacent elements
+                    in the x direction, so delta_x is uniform.
+                    delta_x = element_size + element_spacing
+    :param delta_y: the difference between an element and the next one in the y direction, taken between the middle of
+                    two adjacent elements. element sizes and spacing are the same between every two adjacent elements
+                    in the y direction, so delta_y is uniform.
+                    delta_y = element_size + element_spacing
+    :return: phase_shifts: 2D array resembling the metasurface where every entry of this matrix represents the
+             phase shift required by the corresponding element of the surface.
+    """
+    phase_shifts_x = np.zeros(dphi_dx.shape)
+    phase_shifts_y = np.zeros(dphi_dx.shape)
+
+    for curr_y in range(phase_shifts_x.shape[0]):
+        for curr_x in range(phase_shifts_x.shape[1]):
+            if curr_x == 0:
+                phase_shifts_x[curr_y, curr_x + 1] = (delta_x * dphi_dx[curr_y, curr_x]) + phase_shifts_x[
+                    curr_y, curr_x]
+                if curr_y < phase_shifts_y.shape[0] - 1:
+                    phase_shifts_x[curr_y + 1, curr_x] = (delta_y * dphi_dy[curr_y, curr_x]) + phase_shifts_x[
+                        curr_y, curr_x]
+            elif curr_x == phase_shifts_x.shape[1] - 1:
+                phase_shifts_x[curr_y, curr_x] = (delta_x * dphi_dx[curr_y, curr_x]) + phase_shifts_x[
+                    curr_y, curr_x - 1]
+            else:  # 0 < curr_x < (phase_shifts.shape[1] - 1)
+                phase_shifts_x[curr_y, curr_x + 1] = (2 * delta_x * dphi_dx[curr_y, curr_x]) + phase_shifts_x[
+                    curr_y, curr_x - 1]
+
+            if curr_y == 0:
+                phase_shifts_y[curr_y + 1, curr_x] = (delta_y * dphi_dy[curr_y, curr_x]) + phase_shifts_y[
+                    curr_y, curr_x]
+                if curr_x < phase_shifts_y.shape[1] - 1:
+                    phase_shifts_y[curr_y, curr_x + 1] = (delta_x * dphi_dx[curr_y, curr_x]) + phase_shifts_y[
+                        curr_y, curr_x]
+            elif curr_y == phase_shifts_y.shape[0] - 1:
+                phase_shifts_y[curr_y, curr_x] = (delta_y * dphi_dy[curr_y, curr_x]) + phase_shifts_y[
+                    curr_y - 1, curr_x]
+            else:  # 0 < curr_y < (phase_shifts.shape[0] - 1)
+                phase_shifts_y[curr_y + 1, curr_x] = (2 * delta_y * dphi_dy[curr_y, curr_x]) + phase_shifts_y[
+                    curr_y - 1, curr_x]
+
+    phase_shifts = (phase_shifts_x + phase_shifts_y) / 2
+
+    phase_shifts = np.mod(phase_shifts + np.pi, 2 * np.pi) - np.pi
+
+    return phase_shifts_x, phase_shifts_y, phase_shifts
 
 
 def gradient_2d_periodic(f, delta_x=1.0, delta_y=1.0):
@@ -952,6 +1021,10 @@ def main():
     theta_i, theta_r, phi_r = calculate_angles(transmitter, receiver, surface_size, element_size, element_spacing)
     dphi_dx, dphi_dy = calculate_dphi_dx_dy(theta_i, theta_r, phi_r, wave_number, ni)
     phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
+    phase_shifts_x, phase_shifts_y, phase_shifts1 = calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta,
+                                                                                           delta)
+
+    dphi_dx2, dphi_dy2 = gradient_2d_periodic(phase_shifts1, delta, delta)
 
     # Estimate the capacitance of each element of the surface to achieve the required phase shift
     capacitance_matrix = calculate_capacitance_matrix(R_value, L1_value, L2_value, capacitance_range, phase_shifts,
