@@ -472,7 +472,7 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
     return phase_shifts
 
 
-# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy) using Random Walk
+# Calculate the phase shift array from the phase gradient arrays (dphi_dx, dphi_dy)
 def calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta_x, delta_y):
     """
     Calculates the phase_shifts from the partial derivatives dphi_dx, dphi_dy.
@@ -513,31 +513,51 @@ def calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta_x, delta_y):
 
     for curr_y in range(phase_shifts_x.shape[0]):
         for curr_x in range(phase_shifts_x.shape[1]):
+            # Fill the phase_shifts_x array
             if curr_x == 0:
                 phase_shifts_x[curr_y, curr_x + 1] = (delta_x * dphi_dx[curr_y, curr_x]) + phase_shifts_x[
                     curr_y, curr_x]
-                if curr_y < phase_shifts_y.shape[0] - 1:
+                # Fill the first column of the phase_shifts_x (x=0) using dphi_dy and delta_y
+                if curr_y == 0:
                     phase_shifts_x[curr_y + 1, curr_x] = (delta_y * dphi_dy[curr_y, curr_x]) + phase_shifts_x[
                         curr_y, curr_x]
+                elif curr_y == phase_shifts_y.shape[0] - 1:
+                    phase_shifts_x[curr_y, curr_x] = (delta_y * dphi_dy[curr_y, curr_x]) + phase_shifts_x[
+                        curr_y - 1, curr_x]
+                else:
+                    phase_shifts_x[curr_y + 1, curr_x] = (2 * delta_y * dphi_dy[curr_y, curr_x]) + phase_shifts_x[
+                        curr_y - 1, curr_x]
+            #  ###############################################################################
             elif curr_x == phase_shifts_x.shape[1] - 1:
                 phase_shifts_x[curr_y, curr_x] = (delta_x * dphi_dx[curr_y, curr_x]) + phase_shifts_x[
                     curr_y, curr_x - 1]
             else:  # 0 < curr_x < (phase_shifts.shape[1] - 1)
                 phase_shifts_x[curr_y, curr_x + 1] = (2 * delta_x * dphi_dx[curr_y, curr_x]) + phase_shifts_x[
                     curr_y, curr_x - 1]
+            #  ###############################################################################
 
+            # Fill the phase_shifts_y array
             if curr_y == 0:
                 phase_shifts_y[curr_y + 1, curr_x] = (delta_y * dphi_dy[curr_y, curr_x]) + phase_shifts_y[
                     curr_y, curr_x]
-                if curr_x < phase_shifts_y.shape[1] - 1:
+                # Fill the first row of the phase_shifts_y (y=0) using dphi_dx and delta_x
+                if curr_x == 0:
                     phase_shifts_y[curr_y, curr_x + 1] = (delta_x * dphi_dx[curr_y, curr_x]) + phase_shifts_y[
                         curr_y, curr_x]
+                elif curr_x == phase_shifts_y.shape[1] - 1:
+                    phase_shifts_y[curr_y, curr_x] = (delta_x * dphi_dx[curr_y, curr_x]) + phase_shifts_y[
+                        curr_y, curr_x - 1]
+                else:
+                    phase_shifts_y[curr_y, curr_x + 1] = (2 * delta_x * dphi_dx[curr_y, curr_x]) + phase_shifts_y[
+                        curr_y, curr_x - 1]
+                #  ###############################################################################
             elif curr_y == phase_shifts_y.shape[0] - 1:
                 phase_shifts_y[curr_y, curr_x] = (delta_y * dphi_dy[curr_y, curr_x]) + phase_shifts_y[
                     curr_y - 1, curr_x]
             else:  # 0 < curr_y < (phase_shifts.shape[0] - 1)
                 phase_shifts_y[curr_y + 1, curr_x] = (2 * delta_y * dphi_dy[curr_y, curr_x]) + phase_shifts_y[
                     curr_y - 1, curr_x]
+            #  ###############################################################################
 
     phase_shifts = (phase_shifts_x + phase_shifts_y) / 2
 
@@ -1023,7 +1043,6 @@ def main():
     phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
     phase_shifts_x, phase_shifts_y, phase_shifts1 = calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta,
                                                                                            delta)
-
     dphi_dx2, dphi_dy2 = gradient_2d_periodic(phase_shifts1, delta, delta)
 
     # Estimate the capacitance of each element of the surface to achieve the required phase shift
