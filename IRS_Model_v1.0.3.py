@@ -527,7 +527,7 @@ def calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta_x, delta_y):
                 else:
                     phase_shifts_x[curr_y + 1, curr_x] = (2 * delta_y * dphi_dy[curr_y, curr_x]) + phase_shifts_x[
                         curr_y - 1, curr_x]
-            #  ###############################################################################
+                #  ###############################################################################
             elif curr_x == phase_shifts_x.shape[1] - 1:
                 phase_shifts_x[curr_y, curr_x] = (delta_x * dphi_dx[curr_y, curr_x]) + phase_shifts_x[
                     curr_y, curr_x - 1]
@@ -1040,10 +1040,9 @@ def main():
     # calculate the phase shifts needed
     theta_i, theta_r, phi_r = calculate_angles(transmitter, receiver, surface_size, element_size, element_spacing)
     dphi_dx, dphi_dy = calculate_dphi_dx_dy(theta_i, theta_r, phi_r, wave_number, ni)
-    phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
-    phase_shifts_x, phase_shifts_y, phase_shifts1 = calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta,
+    # phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
+    phase_shifts_x, phase_shifts_y, phase_shifts = calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta,
                                                                                            delta)
-    dphi_dx2, dphi_dy2 = gradient_2d_periodic(phase_shifts1, delta, delta)
 
     # Estimate the capacitance of each element of the surface to achieve the required phase shift
     capacitance_matrix = calculate_capacitance_matrix(R_value, L1_value, L2_value, capacitance_range, phase_shifts,
@@ -1081,6 +1080,7 @@ def main():
 
     if save_results:
         results_file = open("./Results_model_v1-0-3/results.txt", "w")
+        results_file.write(f"Incident Signal frequency: {frequency * 1e-9} GHz\n")
         results_file.write(f"Incident Signal Wavelength: {round(wavelength * 1e3, 3)} mm\n")
         results_file.write(f"Surface Number of Elements: {surface_size}\n")
         results_file.write(f"Surface Elements Sizes: {round(element_size * 1e3, 3)} mm\n")
