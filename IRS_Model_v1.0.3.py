@@ -1038,7 +1038,6 @@ def main():
     # phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
     phase_shifts_x, phase_shifts_y, phase_shifts = calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta,
                                                                                           delta)
-    # dphi_dx2, dphi_dy2 = gradient_2d_periodic(phase_shifts1, delta, delta)
 
     # Estimate the capacitance of each element of the surface to achieve the required phase shift
     capacitance_matrix = calculate_capacitance_matrix(R_value, L1_value, L2_value, capacitance_range, phase_shifts,
