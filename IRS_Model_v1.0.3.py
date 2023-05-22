@@ -740,7 +740,7 @@ def compute_successful_reflections(receiver, elements_coordinates_array, inciden
 
 
 def power_received(wavelength, wave_number, incident_amplitude, incident_phase, ni, real_reflection_coefficients_array,
-                   rays_distances, successful_reflections, plot_power=False, save_plot=False):
+                   rays_distances, successful_reflections):
     """
     Calculates the power received by the receiver antenna.
     the calculation is based on the two ray model but ignoring the line of sight component.
@@ -757,8 +757,6 @@ def power_received(wavelength, wave_number, incident_amplitude, incident_phase, 
                                                coefficients of each element of the surface
     :param rays_distances:  distances between the transmitter and the receiver through each element of the surface
     :param successful_reflections: 2D boolean array where each entry represent an element of the metasurface.
-    :param plot_power: flag indicating if the power should be plotted or not
-    :param save_plot: flag indicating if the plot is saved as a png or not
     :return: received_power: the power received by the receiver antenna
     """
     transmitted_power = np.power(incident_amplitude, 2) / 2
@@ -773,14 +771,10 @@ def power_received(wavelength, wave_number, incident_amplitude, incident_phase, 
 
     received_power = received_powers[-1]
 
-    # plot Power as function of number of elements
-    if plot_power:
-        plot_power_graph(transmitted_power, received_powers, save_plot)
-
-    return received_power
+    return received_powers, received_power
 
 
-def plot_power_graph(transmitted_power, received_powers, save_plot):
+def plot_power_graph(transmitted_power, received_powers, save_plot=False):
     """
     Plot the transmitted power.
     Plot the received power vs number of elements
@@ -818,7 +812,7 @@ def find_snells_angle(transmitter, receiver, normal):
     theta_i = theta_r
     ((vi.normal) / |vi|) = ((vr.normal) / |vr|)
     (zi / |vi|) = (zr / |vr|)
-    ((x - xi)^2 + (y - yi)^2) / ((x - xr)^2 + (y - yr)^2) = (zi / zr)^2
+    ((x - xi)^2 + (y - yi)^2 + (zi)^2) / ((x - xr)^2 + (y - yr)^2 + (zr)^2) = (zi / zr)^2
     ""
     :param transmitter: the coordinates of the transmitter
     :param receiver: the coordinates of the receiver
@@ -829,7 +823,8 @@ def find_snells_angle(transmitter, receiver, normal):
     xr, yr, zr = receiver
 
     def f(x, y):
-        return (((x - xi) ** 2 + (y - yi) ** 2) / ((x - xr) ** 2 + (y - yr) ** 2)) - ((zi / zr) ** 2)
+        return (((x - xi) ** 2 + (y - yi) ** 2 + zi ** 2) / ((x - xr) ** 2 + (y - yr) ** 2 + zr ** 2)) - (
+                    (zi / zr) ** 2)
 
     # Define a grid of points to evaluate the function
     X, Y = np.meshgrid(np.linspace(min(xi, xr), max(xi, xr), 1000), np.linspace(min(yi, yr), max(yi, yr), 1000))
@@ -1042,7 +1037,8 @@ def main():
     dphi_dx, dphi_dy = calculate_dphi_dx_dy(theta_i, theta_r, phi_r, wave_number, ni)
     # phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
     phase_shifts_x, phase_shifts_y, phase_shifts = calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta,
-                                                                                           delta)
+                                                                                          delta)
+    # dphi_dx2, dphi_dy2 = gradient_2d_periodic(phase_shifts1, delta, delta)
 
     # Estimate the capacitance of each element of the surface to achieve the required phase shift
     capacitance_matrix = calculate_capacitance_matrix(R_value, L1_value, L2_value, capacitance_range, phase_shifts,
@@ -1061,9 +1057,9 @@ def main():
                                                                                           real_theta_r, real_phi_r)
 
     # Calculate the received power
-    received_power = power_received(wavelength, wave_number, incident_amplitude, incident_phase, ni,
-                                    real_reflection_coefficients_array, rays_distances, successful_reflections,
-                                    plot_power=True, save_plot=save_results)
+    received_powers, received_power = power_received(wavelength, wave_number, incident_amplitude, incident_phase, ni,
+                                                     real_reflection_coefficients_array, rays_distances,
+                                                     successful_reflections)
 
     # Calculate the required varactor bias voltages to achieve the required capacitance
     corresponding_varactor_voltages = required_varactor_bias_voltages(capacitance_matrix)
@@ -1187,6 +1183,7 @@ def main():
         show_phase_shift_plots(np.rad2deg(np.mod(phase_shifts - real_phase_shifts + np.pi, 2 * np.pi) - np.pi),
                                "Difference")
         draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts)
+        plot_power_graph(transmitted_power, received_powers, save_plot=save_results)
 
         plt.show()
 
