@@ -1144,7 +1144,7 @@ def main():
         print("Results Saved.\n")
 
     if print_results:
-        print("Results:")
+        print("Simulation Results:")
         print(f"Surface Height: {round(surface_height * 1e2, 2)} cm")
         print(f"Surface Width: {round(surface_width * 1e2, 2)} cm")
         print(f"Surface Area: {round(surface_area, 2)} m²")
