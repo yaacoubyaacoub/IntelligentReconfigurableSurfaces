@@ -1079,6 +1079,7 @@ def main():
 
     results_directory_path = None
     if save_results:
+        print("Saving Results...")
         current_file = os.path.splitext(os.path.basename(__file__))[0]
         results_directory_path = f"./Results_{current_file}/"
         os.makedirs(results_directory_path, exist_ok=True)
@@ -1140,8 +1141,10 @@ def main():
                    np.round(np.multiply(capacitance_matrix, 1e12), 2), delimiter=",")
         np.savetxt(os.path.join(results_directory_path, "corresponding_varactor_voltages(in Volts).csv"),
                    corresponding_varactor_voltages, delimiter=",")
+        print("Results Saved.\n")
 
     if print_results:
+        print("Results:")
         print(f"Surface Height: {round(surface_height * 1e2, 2)} cm")
         print(f"Surface Width: {round(surface_width * 1e2, 2)} cm")
         print(f"Surface Area: {round(surface_area, 2)} m²")
