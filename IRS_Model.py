@@ -836,8 +836,8 @@ def find_snells_angle(transmitter, receiver, normal):
 
     # Find the (x, y) coordinates where the function is closest to zero
     idx = np.argmin(np.abs(Z))
-    x, y = X.flat[idx], Y.flat[idx]
-    p0 = np.array([x, y, 0])
+    x_value, y_value = X.flat[idx], Y.flat[idx]
+    p0 = np.array([x_value, y_value, 0])
 
     vi = transmitter - p0
     theta_i = np.arccos(np.dot(vi, normal) / np.linalg.norm(vi))
