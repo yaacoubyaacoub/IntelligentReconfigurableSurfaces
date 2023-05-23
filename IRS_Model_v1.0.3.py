@@ -1107,7 +1107,8 @@ def main():
         results_file.write(
             f"Elements with correct reflection percentage: {round(accurate_elements_percentage * 100, 2)}%\n")
 
-        results_file.write(f"Original Snell's law angle: {np.round(np.degrees(original_snells_law_theta_i), 2)}\n")
+        results_file.write(
+            f"Original Snell's law angle (in degrees): {np.round(np.degrees(original_snells_law_theta_i), 2)}°\n")
 
         if received_power_no_intelligent_surface != 0:
             results_file.write(
@@ -1157,7 +1158,7 @@ def main():
               f"{round(accurate_elements_percentage * successful_reflections.size)}/{successful_reflections.size}")
         print(f"Elements with correct reflection percentage: {round(accurate_elements_percentage * 100, 2)}%")
 
-        print(f"Original Snell's law angle: {np.round(np.degrees(original_snells_law_theta_i), 2)}")
+        print(f"Original Snell's law angle (in degrees): {np.round(np.degrees(original_snells_law_theta_i), 2)}°")
         print(f"Received Power without IRS (in Watts): {received_power_no_intelligent_surface:.2e} W")
         if received_power_no_intelligent_surface != 0:
             print(
