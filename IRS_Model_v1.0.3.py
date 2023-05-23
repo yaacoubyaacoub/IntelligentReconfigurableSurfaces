@@ -563,7 +563,7 @@ def calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta_x, delta_y):
 
     phase_shifts = np.mod(phase_shifts + np.pi, 2 * np.pi) - np.pi
 
-    return phase_shifts_x, phase_shifts_y, phase_shifts
+    return phase_shifts
 
 
 def gradient_2d_periodic(f, delta_x=1.0, delta_y=1.0):
@@ -1036,8 +1036,7 @@ def main():
     theta_i, theta_r, phi_r = calculate_angles(transmitter, receiver, surface_size, element_size, element_spacing)
     dphi_dx, dphi_dy = calculate_dphi_dx_dy(theta_i, theta_r, phi_r, wave_number, ni)
     # phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
-    phase_shifts_x, phase_shifts_y, phase_shifts = calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta,
-                                                                                          delta)
+    phase_shifts = calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta, delta)
 
     # Estimate the capacitance of each element of the surface to achieve the required phase shift
     capacitance_matrix = calculate_capacitance_matrix(R_value, L1_value, L2_value, capacitance_range, phase_shifts,
@@ -1046,10 +1045,11 @@ def main():
     real_reflection_coefficients_array, real_phase_shifts = calculate_real_phase_shifts(R_value, L1_value, L2_value,
                                                                                         capacitance_matrix,
                                                                                         angular_frequency)
-    # real_phase_shifts1 = real_phase_shifts + shifts * 2 * np.pi
+    # Calculate the real reflection angles
     real_theta_r, real_phi_r = calculate_real_reflected_angles(theta_i, real_phase_shifts, delta, delta,
                                                                wave_number, ni)
 
+    # compute the successful reflections matrix
     successful_reflections, accurate_elements_percentage = compute_successful_reflections(receiver,
                                                                                           elements_coordinates_array,
                                                                                           incident_vectors,
@@ -1179,8 +1179,7 @@ def main():
 
         show_phase_shift_plots(np.rad2deg(phase_shifts), "Required Phase Shifts", save_plot=save_results)
         show_phase_shift_plots(np.rad2deg(real_phase_shifts), "Real Phase Shifts", save_plot=save_results)
-        show_phase_shift_plots(np.rad2deg(np.mod(phase_shifts - real_phase_shifts + np.pi, 2 * np.pi) - np.pi),
-                               "Difference")
+        # show_phase_shift_plots(np.rad2deg(np.mod(phase_shifts - real_phase_shifts + np.pi, 2 * np.pi) - np.pi), "Difference")
         draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts)
         plot_power_graph(transmitted_power, received_powers, save_plot=save_results)
 
