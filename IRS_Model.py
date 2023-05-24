@@ -984,7 +984,7 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
 
 def main():
     print_results = True
-    save_results = True
+    save_results = False
 
     # Parameters
     transmitter = np.array([1, 0.5, 3])  # Position of the transmitter
