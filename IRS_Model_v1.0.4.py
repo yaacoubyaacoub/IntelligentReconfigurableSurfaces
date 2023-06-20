@@ -1001,6 +1001,11 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
     ax.set_ylabel('Y-axis')
     ax.set_zlabel('Z-axis')
 
+    # Set x-axis limits
+    ax.set_xlim(-5, 7)
+    ax.set_ylim(-1.5, 1.5)
+    ax.set_zlim(0, 12)
+
 
 def plot_text(text, subplot_position=None):
     if subplot_position is not None:
@@ -1015,7 +1020,7 @@ def plot_text(text, subplot_position=None):
     plt.axis("off")
 
 
-def coordinates_update(coords, step_size_x=0.25, step_size_y=0.25, step_size_z=0.25):
+def coordinates_update(coords, step_size_x=0.25, step_size_y=0.25, step_size_z=0.025):
     directions_taken = random.sample(["x", "y", "z"], random.randint(0, 3))
     for d in directions_taken:
         if d == "x":
@@ -1282,8 +1287,8 @@ def model(transmitter, receiver):
 
 
 def main():
-    transmitter = np.array([1, 0.5, 3])  # Position of the transmitter
-    receiver = np.array([1.5, 1.2, 2])  # Position of the receiver
+    transmitter = np.array([-1.73, 0.15, 3])  # Position of the transmitter
+    receiver = np.array([2.27, 0.15, 3])  # Position of the receiver
 
     plt.figure(figsize=(17, 9))
     # plt.figure(figsize=(13, 7))

@@ -980,9 +980,9 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
     ax.set_zlabel('Z-axis')
 
     # Set x-axis limits
-    # ax.set_xlim(-0.05, 0.5)
-    # ax.set_ylim(-0.1, 0.5)
-    # ax.set_zlim(0, 1)
+    ax.set_xlim(-5, 7)
+    ax.set_ylim(-1.5, 1.5)
+    ax.set_zlim(0, 12)
 
     # plt.show()
 
@@ -992,8 +992,10 @@ def main():
     save_results = True
 
     # Parameters
-    transmitter = np.array([1, 0.5, 3])  # Position of the transmitter
-    receiver = np.array([1.5, 1.2, 2])  # Position of the receiver
+    transmitter = np.array([-1.73, 0.15, 3])  # Position of the transmitter
+    receiver = np.array([2.27, 0.15, 3])  # Position of the receiver
+    # transmitter = np.array([1, 0.5, 3])  # Position of the transmitter
+    # receiver = np.array([1.5, 1.2, 2])  # Position of the receiver
     # transmitter = np.array([0.2, 1.2, 0.5])  # Position of the transmitter
     # receiver = np.array([0.3, 1.6, 0.5])  # Position of the receiver
     frequency = 10e9  # Frequency in Hz

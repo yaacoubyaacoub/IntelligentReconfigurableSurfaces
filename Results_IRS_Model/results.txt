@@ -1,5 +1,5 @@
-Transmitter Location: [1.  0.5 3. ]
-Receiver Location: [1.5 1.2 2. ]
+Transmitter Location: [-1.73  0.15  3.  ]
+Receiver Location: [2.27 0.15 3.  ]
 Incident Signal frequency: 10.0 GHz
 Incident Signal Wavelength: 29.979 mm
 Surface Number of Elements: (20, 55)
@@ -8,22 +8,22 @@ Surface Elements spacings: 7.495 mm
 Surface Height: 29.23 cm
 Surface Width: 55.46 cm
 Surface Area: 0.16 m²
-Min LOS distance between emitter and surface: 3.01 m
-Max LOS distance between emitter and surface: 3.2 m
-Average LOS distance between emitter and surface: 3.09 m
-Min LOS distance between surface and receiver: 2.3 m
-Max LOS distance between surface and receiver: 2.77 m
-Average LOS distance between emitter and surface: 2.52 m
-Min NLOS distance between emitter and receiver through surface: 5.32 m
-Max NLOS distance between emitter and receiver through surface: 5.97 m
-Average NLOS distance between emitter and receiver through surface: 5.61 m
+Min LOS distance between emitter and surface: 3.46 m
+Max LOS distance between emitter and surface: 3.94 m
+Average LOS distance between emitter and surface: 3.69 m
+Min LOS distance between surface and receiver: 3.34 m
+Max LOS distance between surface and receiver: 3.76 m
+Average LOS distance between emitter and surface: 3.54 m
+Min NLOS distance between emitter and receiver through surface: 7.21 m
+Max NLOS distance between emitter and receiver through surface: 7.27 m
+Average NLOS distance between emitter and receiver through surface: 7.23 m
 Transmitted power (in Watts): 5.00e-03 W
 Transmitted power (in dBm): 6.99 dBm
-Received Power (in Watts): 1.10e-07 W
-Received Power (in dBm): -39.58 dBm
-Number of elements with correct reflection: 626/1100
-Elements with correct reflection percentage: 56.91%
-Original Snell's law angle (in degrees): 9.83°
-Received Power without IRS (in Watts): 1.35e-10 W
-Received Power without IRS (in dBm): -68.68 dBm
-Additional received power with IRS: 29.1 dBm
+Received Power (in Watts): 1.05e-04 W
+Received Power (in dBm): -9.79 dBm
+Number of elements with correct reflection: 965/1100
+Elements with correct reflection percentage: 87.73%
+Original Snell's law angle (in degrees): 33.66°
+Received Power without IRS (in Watts): 1.08e-10 W
+Received Power without IRS (in dBm): -69.68 dBm
+Additional received power with IRS: 59.89 dBm
