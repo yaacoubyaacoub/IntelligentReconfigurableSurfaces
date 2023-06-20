@@ -1,3 +1,5 @@
+Transmitter Location: [1.  0.5 3. ]
+Receiver Location: [1.5 1.2 2. ]
 Incident Signal frequency: 10.0 GHz
 Incident Signal Wavelength: 29.979 mm
 Surface Number of Elements: (20, 55)
@@ -6,15 +8,17 @@ Surface Elements spacings: 7.495 mm
 Surface Height: 29.23 cm
 Surface Width: 55.46 cm
 Surface Area: 0.16 m²
-min LOS distance between emitter and surface through surface: 3.01 m
-max LOS distance between emitter and surface through surface: 3.2 m
-min LOS distance between surface and receiver through surface: 2.3 m
-max LOS distance between surface and receiver through surface: 2.77 m
-min NLOS distance between emitter and receiver through surface: 5.32 m
-max NLOS distance between emitter and receiver through surface: 5.97 m
-average NLOS distance between emitter and receiver through surface: 5.61 m
-transmitted power (in Watts): 5.00e-03 W
-transmitted power (in dBm): 6.99 dBm
+Min LOS distance between emitter and surface: 3.01 m
+Max LOS distance between emitter and surface: 3.2 m
+Average LOS distance between emitter and surface: 3.09 m
+Min LOS distance between surface and receiver: 2.3 m
+Max LOS distance between surface and receiver: 2.77 m
+Average LOS distance between emitter and surface: 2.52 m
+Min NLOS distance between emitter and receiver through surface: 5.32 m
+Max NLOS distance between emitter and receiver through surface: 5.97 m
+Average NLOS distance between emitter and receiver through surface: 5.61 m
+Transmitted power (in Watts): 5.00e-03 W
+Transmitted power (in dBm): 6.99 dBm
 Received Power (in Watts): 1.10e-07 W
 Received Power (in dBm): -39.58 dBm
 Number of elements with correct reflection: 626/1100

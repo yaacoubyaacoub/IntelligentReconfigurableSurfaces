@@ -272,26 +272,31 @@ def calculate_wave_travelled_distances(incidence_distances, reflection_distances
     :return: rays_distances: distances between the transmitter and the receiver through each element of the surface
              min_total_distance: min distance between the transmitter and the receiver through the surface
              max_total_distance: max distance between the transmitter and the receiver through the surface
+             average_total_distance: average distance between the transmitter and the receiver through the surface
              min_transmitter_surface_distance: min distance between the transmitter and the surface
              max_transmitter_surface_distance: max distance between the transmitter and the surface
+             average_transmitter_surface_distance: average distance between the transmitter and the surface
              min_surface_receiver_distance: min distance between the surface and the receiver
              max_surface_receiver_distance: max distance between the surface and the receiver
+             average_surface_receiver_distance: average distance between the surface and the receiver
     """
     rays_distances = incidence_distances + reflection_distances
 
     min_transmitter_surface_distance = np.round(np.min(incidence_distances), 2)
     max_transmitter_surface_distance = np.round(np.max(incidence_distances), 2)
+    average_transmitter_surface_distance = np.round(np.average(incidence_distances), 2)
 
     min_surface_receiver_distance = np.round(np.min(reflection_distances), 2)
     max_surface_receiver_distance = np.round(np.max(reflection_distances), 2)
+    average_surface_receiver_distance = np.round(np.average(reflection_distances), 2)
 
     min_total_distance = np.round(np.min(rays_distances), 2)
     max_total_distance = np.round(np.max(rays_distances), 2)
     average_total_distance = np.round(np.average(rays_distances), 2)
 
     return rays_distances, min_total_distance, max_total_distance, average_total_distance, \
-           min_transmitter_surface_distance, max_transmitter_surface_distance, \
-           min_surface_receiver_distance, max_surface_receiver_distance
+           min_transmitter_surface_distance, max_transmitter_surface_distance, average_transmitter_surface_distance, \
+           min_surface_receiver_distance, max_surface_receiver_distance, average_surface_receiver_distance
 
 
 def calculate_angles(transmitter, receiver, surface_size, element_size, element_spacing):
@@ -996,13 +1001,6 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
     ax.set_ylabel('Y-axis')
     ax.set_zlabel('Z-axis')
 
-    # Set x-axis limits
-    # ax.set_xlim(-0.05, 0.5)
-    # ax.set_ylim(-0.1, 0.5)
-    # ax.set_zlim(0, 1)
-
-    # plt.show()
-
 
 def plot_text(text, subplot_position=None):
     if subplot_position is not None:
@@ -1010,23 +1008,14 @@ def plot_text(text, subplot_position=None):
     else:
         plt.figure()
 
-    # Set the x and y coordinates for the text
-    x = 0
-    y = 0.5
-
-    # Set the text content and style
-    font_size = 12
-    font_family = "Arial"
-    font_weight = "bold"
-
     # Add the text to the plot
-    plt.text(x, y, text, fontsize=font_size, fontfamily=font_family, fontweight=font_weight)
+    plt.text(0, 0.25, text, fontsize=12, fontfamily="Arial", fontweight="bold")
 
     # Remove the axis ticks and labels
     plt.axis("off")
 
 
-def coordinates_update(coords, step_size_x=0.1, step_size_y=0.1, step_size_z=0.1):
+def coordinates_update(coords, step_size_x=0.25, step_size_y=0.25, step_size_z=0.25):
     directions_taken = random.sample(["x", "y", "z"], random.randint(0, 3))
     for d in directions_taken:
         if d == "x":
@@ -1046,10 +1035,6 @@ def model(transmitter, receiver):
     save_results = False
 
     # Parameters
-    # transmitter = np.array([1, 0.5, 3])  # Position of the transmitter
-    # receiver = np.array([1.5, 1.2, 2])  # Position of the receiver
-    # transmitter = np.array([0.2, 1.2, 0.5])  # Position of the transmitter
-    # receiver = np.array([0.3, 1.6, 0.5])  # Position of the receiver
     frequency = 10e9  # Frequency in Hz
     c = constants.speed_of_light  # Speed of light in m/s
     wavelength = c / frequency  # Calculate wavelength
@@ -1091,9 +1076,9 @@ def model(transmitter, receiver):
         transmitter, receiver, elements_coordinates_array)
     # Calculates ray travelled distances
     rays_distances, min_total_distance, max_total_distance, average_total_distance, \
-    min_transmitter_surface_distance, max_transmitter_surface_distance, \
-    min_surface_receiver_distance, max_surface_receiver_distance = calculate_wave_travelled_distances(
-        incidence_distances, reflection_distances)
+    min_transmitter_surface_distance, max_transmitter_surface_distance, average_transmitter_surface_distance, \
+    min_surface_receiver_distance, max_surface_receiver_distance, average_surface_receiver_distance \
+        = calculate_wave_travelled_distances(incidence_distances, reflection_distances)
 
     # calculate the phase shifts needed
     theta_i, theta_r, phi_r = calculate_angles(transmitter, receiver, surface_size, element_size, element_spacing)
@@ -1153,21 +1138,25 @@ def model(transmitter, receiver):
         results_file.write(f"Surface Width: {round(surface_width * 1e2, 2)} cm\n")
         results_file.write(f"Surface Area: {round(surface_area, 2)} m²\n")
         results_file.write(
-            f"min LOS distance between emitter and surface through surface: {min_transmitter_surface_distance} m\n")
+            f"Min LOS distance between emitter and surface: {min_transmitter_surface_distance} m\n")
         results_file.write(
-            f"max LOS distance between emitter and surface through surface: {max_transmitter_surface_distance} m\n")
+            f"Max LOS distance between emitter and surface: {max_transmitter_surface_distance} m\n")
         results_file.write(
-            f"min LOS distance between surface and receiver through surface: {min_surface_receiver_distance} m\n")
+            f"Average LOS distance between emitter and surface: {average_transmitter_surface_distance} m\n")
         results_file.write(
-            f"max LOS distance between surface and receiver through surface: {max_surface_receiver_distance} m\n")
+            f"Min LOS distance between surface and receiver: {min_surface_receiver_distance} m\n")
         results_file.write(
-            f"min NLOS distance between emitter and receiver through surface: {min_total_distance} m\n")
+            f"Max LOS distance between surface and receiver: {max_surface_receiver_distance} m\n")
         results_file.write(
-            f"max NLOS distance between emitter and receiver through surface: {max_total_distance} m\n")
+            f"Average LOS distance between emitter and surface: {average_surface_receiver_distance} m\n")
         results_file.write(
-            f"average NLOS distance between emitter and receiver through surface: {average_total_distance} m\n")
-        results_file.write(f"transmitted power (in Watts): {transmitted_power:.2e} W\n")
-        results_file.write(f"transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm\n")
+            f"Min NLOS distance between emitter and receiver through surface: {min_total_distance} m\n")
+        results_file.write(
+            f"Max NLOS distance between emitter and receiver through surface: {max_total_distance} m\n")
+        results_file.write(
+            f"Average NLOS distance between emitter and receiver through surface: {average_total_distance} m\n")
+        results_file.write(f"Transmitted power (in Watts): {transmitted_power:.2e} W\n")
+        results_file.write(f"Transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm\n")
         results_file.write(f"Received Power (in Watts): {received_power:.2e} W\n")
         results_file.write(f"Received Power (in dBm): {round(10 * math.log10(received_power / 1e-3), 2)} dBm\n")
 
@@ -1212,13 +1201,15 @@ def model(transmitter, receiver):
         print(f"Surface Width: {round(surface_width * 1e2, 2)} cm")
         print(f"Surface Area: {round(surface_area, 2)} m²")
 
-        print(f"min LOS distance between emitter and surface through surface: {min_transmitter_surface_distance} m")
-        print(f"max LOS distance between emitter and surface through surface: {max_transmitter_surface_distance} m")
-        print(f"min LOS distance between surface and receiver through surface: {min_surface_receiver_distance} m")
-        print(f"max LOS distance between surface and receiver through surface: {max_surface_receiver_distance} m")
-        print(f"min NLOS distance between emitter and receiver through surface: {min_total_distance} m")
-        print(f"max NLOS distance between emitter and receiver through surface: {max_total_distance} m")
-        print(f"average NLOS distance between emitter and receiver through surface: {average_total_distance} m")
+        print(f"Min LOS distance between emitter and surface: {min_transmitter_surface_distance} m")
+        print(f"Max LOS distance between emitter and surface: {max_transmitter_surface_distance} m")
+        print(f"Average LOS distance between emitter and surface: {average_transmitter_surface_distance} m")
+        print(f"Min LOS distance between surface and receiver: {min_surface_receiver_distance} m")
+        print(f"Max LOS distance between surface and receiver: {max_surface_receiver_distance} m")
+        print(f"Average LOS distance between surface and receiver: {average_surface_receiver_distance} m")
+        print(f"Min NLOS distance between emitter and receiver through surface: {min_total_distance} m")
+        print(f"Max NLOS distance between emitter and receiver through surface: {max_total_distance} m")
+        print(f"Average NLOS distance between emitter and receiver through surface: {average_total_distance} m")
 
         print(f"transmitted power (in Watts): {transmitted_power:.2e} W")
         print(f"transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm")
@@ -1251,6 +1242,7 @@ def model(transmitter, receiver):
         print("\nRequired Varactor Bias Voltages (in Volts):")
         print(corresponding_varactor_voltages)
 
+    # Plotting Figures
     plt.clf()
 
     show_phase_shift_plots(np.rad2deg(phase_shifts), "Required Phase Shifts", save_plot=save_results,
@@ -1262,26 +1254,39 @@ def model(transmitter, receiver):
     plot_power_graph(transmitted_power, received_powers, save_plot=save_results,
                      results_directory_path=results_directory_path, subplot_position=(3, 2, 4))
 
-    text1 = "Transmitter Location:" + str(transmitter) + "\nReceiver Location: " + str(
-        receiver) + "\nElements with correct reflection percentage: " + str(
-        round(accurate_elements_percentage * 100, 2)) + "%"
-    plot_text(text1, subplot_position=(3, 2, 5))
+    output1 = '\n'.join([
+        f"Transmitter Location: {transmitter}",
+        f"Receiver Location: {receiver}",
+        f"Surface Height: {round(surface_height * 1e2, 2)} cm",
+        f"Surface Width: {round(surface_width * 1e2, 2)} cm",
+        f"Surface Area: {round(surface_area, 2)} m²",
+        f"Average LOS distance between emitter and surface: {average_transmitter_surface_distance} m",
+        f"Average LOS distance between surface and receiver: {average_surface_receiver_distance} m",
+        f"Average NLOS distance between emitter and receiver through surface: {average_total_distance} m",
+    ])
 
-    text2 = "transmitted power (in dBm): " + str(
-        round(10 * np.log10(transmitted_power / 1e-3), 2)) + "dBm" + "\nReceived Power (in dBm): " + str(
-        round(10 * math.log10(received_power / 1e-3), 2)) + "dBm"
-    plot_text(text2, subplot_position=(3, 2, 6))
+    output2 = '\n'.join([
+        f"Transmitted power (in Watts): {transmitted_power:.2e} W",
+        f"Transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm",
+        f"Received Power (in Watts): {received_power:.2e} W",
+        f"Received Power (in dBm): {round(10 * math.log10(received_power / 1e-3), 2)} dBm",
+        f"Percentage Received/Transmitted Power: {((received_power / transmitted_power) * 100):.2e}%",
+        f"Number of elements with correct reflection: {round(accurate_elements_percentage * successful_reflections.size)}/{successful_reflections.size}",
+        f"Elements with correct reflection percentage: {round(accurate_elements_percentage * 100, 2)}%",
+    ])
+
+    plot_text(output1, subplot_position=(3, 2, 5))
+    plot_text(output2, subplot_position=(3, 2, 6))
 
     plt.tight_layout()
-    # plt.show()
 
 
 def main():
     transmitter = np.array([1, 0.5, 3])  # Position of the transmitter
     receiver = np.array([1.5, 1.2, 2])  # Position of the receiver
 
-    # plt.figure(figsize=(17, 9))
-    plt.figure(figsize=(13, 7))
+    plt.figure(figsize=(17, 9))
+    # plt.figure(figsize=(13, 7))
 
     while True:
         model(transmitter, receiver)
