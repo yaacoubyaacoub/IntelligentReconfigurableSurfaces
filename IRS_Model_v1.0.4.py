@@ -1020,18 +1020,31 @@ def plot_text(text, subplot_position=None):
     plt.axis("off")
 
 
-def coordinates_update(coords, step_size_x=0.25, step_size_y=0.25, step_size_z=0.025):
+def coordinates_update(coords, step_size_x=0.25, step_size_y=0.025, step_size_z=0.25):
+    # Room size 3D coordinates (Limits where the transmitter and the receiver could be in the room)
+    x_coord_min, x_coord_max = -5, 7
+    y_coord_min, y_coord_max = -1.5, 1.5
+    z_coord_min, z_coord_max = 0, 12
+
+    # Taking direction randomly
     directions_taken = random.sample(["x", "y", "z"], random.randint(0, 3))
+
     for d in directions_taken:
         if d == "x":
             move_x = step_size_x * random.choice([1, -1])
-            coords[0] = coords[0] + move_x
+            x_coord = coords[0] + move_x
+            if x_coord_min <= x_coord <= x_coord_max:
+                coords[0] = x_coord
         if d == "y":
             move_y = step_size_y * random.choice([1, -1])
-            coords[1] = coords[1] + move_y
+            y_coord = coords[1] + move_y
+            if y_coord_min <= y_coord <= y_coord_max:
+                coords[1] = y_coord
         if d == "z":
             move_z = step_size_z * random.choice([1, -1])
-            coords[2] = coords[2] + move_z
+            z_coord = coords[2] + move_z
+            if z_coord_min <= z_coord <= z_coord_max:
+                coords[2] = z_coord
     return coords
 
 
