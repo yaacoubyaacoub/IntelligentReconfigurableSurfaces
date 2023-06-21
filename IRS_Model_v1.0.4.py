@@ -33,7 +33,7 @@ def freespace_impedance():
 
 
 def element_impedance(R, L1, L2, C, w):
-    """
+    """G
     Calculates the impedance of an element of the surface.
     Equivalent circuit of one element of the metasurface:
                 ------------L1-----------
@@ -927,7 +927,7 @@ def show_phase_shift_plots(phase_shifts, title, save_plot=False, results_directo
 
 
 def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phi_matrix,
-                                 subplot_position=None):
+                                 room_sizes=None, subplot_position=None):
     """
     Drawing the surface the transmitter the receiver as a dot. and show the reflection path
     :param transmitter: the coordinates of the transmitter
@@ -938,6 +938,9 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
            (spacing between elements is the same in both directions)
     :param phi_matrix: 2D phase shift matrix resembling the metasurface where every entry of this matrix represents
                        the phase shift realized by the corresponding element of the surface
+    :param room_sizes: List of the form [x_coord_min, x_coord_max, y_coord_min, y_coord_max, z_coord_min, z_coord_max]
+                       defining the 3D sizes of the room using 3D coordinates relative to the position of the
+                       metasurface which start at position (0, 0, 0)
     :param subplot_position: Plot location on the figure in case we want all plots on the same figure.
                              None, if each plot is an independent figure.
     """
@@ -991,7 +994,7 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
             label='Normal Vector')
 
     # Set legend
-    ax.legend(loc='upper left', fontsize=5)
+    ax.legend(loc='upper left')
 
     # Set title
     plt.title("IRS Reflection Model")
@@ -1001,10 +1004,15 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
     ax.set_ylabel('Y-axis')
     ax.set_zlabel('Z-axis')
 
-    # Set x-axis limits
-    ax.set_xlim(-5, 7)
-    ax.set_ylim(-1.5, 1.5)
-    ax.set_zlim(0, 12)
+    # Set axis limits (Room Size)
+    if room_sizes is not None:
+        # Room size 3D coordinates
+        x_coord_min, x_coord_max = room_sizes[0], room_sizes[1]
+        y_coord_min, y_coord_max = room_sizes[2], room_sizes[3]
+        z_coord_min, z_coord_max = room_sizes[4], room_sizes[5]
+        ax.set_xlim(x_coord_min, x_coord_max)
+        ax.set_ylim(y_coord_min, y_coord_max)
+        ax.set_zlim(z_coord_min, z_coord_max)
 
 
 def plot_text(text, subplot_position=None):
@@ -1014,17 +1022,18 @@ def plot_text(text, subplot_position=None):
         plt.figure()
 
     # Add the text to the plot
-    plt.text(0, 0.25, text, fontsize=12, fontfamily="Arial", fontweight="bold")
+    plt.text(0, 0, text, fontsize=12, fontfamily="Arial", fontweight="bold")
 
     # Remove the axis ticks and labels
     plt.axis("off")
 
 
-def coordinates_update(coords, step_size_x=0.25, step_size_y=0.025, step_size_z=0.25):
-    # Room size 3D coordinates (Limits where the transmitter and the receiver could be in the room)
-    x_coord_min, x_coord_max = -5, 7
-    y_coord_min, y_coord_max = -1.5, 1.5
-    z_coord_min, z_coord_max = 0, 12
+def coordinates_update(coords, step_size_x=0.25, step_size_y=0.025, step_size_z=0.25, room_sizes=None):
+    if room_sizes is not None:
+        # Room size 3D coordinates (Limits where the transmitter and the receiver could be in the room)
+        x_coord_min, x_coord_max = room_sizes[0], room_sizes[1]
+        y_coord_min, y_coord_max = room_sizes[2], room_sizes[3]
+        z_coord_min, z_coord_max = room_sizes[4], room_sizes[5]
 
     # Taking direction randomly
     directions_taken = random.sample(["x", "y", "z"], random.randint(0, 3))
@@ -1033,22 +1042,22 @@ def coordinates_update(coords, step_size_x=0.25, step_size_y=0.025, step_size_z=
         if d == "x":
             move_x = step_size_x * random.choice([1, -1])
             x_coord = coords[0] + move_x
-            if x_coord_min <= x_coord <= x_coord_max:
+            if (room_sizes is None) or (x_coord_min <= x_coord <= x_coord_max):
                 coords[0] = x_coord
         if d == "y":
             move_y = step_size_y * random.choice([1, -1])
             y_coord = coords[1] + move_y
-            if y_coord_min <= y_coord <= y_coord_max:
+            if (room_sizes is None) or (y_coord_min <= y_coord <= y_coord_max):
                 coords[1] = y_coord
         if d == "z":
             move_z = step_size_z * random.choice([1, -1])
             z_coord = coords[2] + move_z
-            if z_coord_min <= z_coord <= z_coord_max:
+            if (room_sizes is None) or (z_coord_min <= z_coord <= z_coord_max):
                 coords[2] = z_coord
     return coords
 
 
-def model(transmitter, receiver):
+def model(transmitter, receiver, room_sizes):
     print_results = False
     save_results = False
 
@@ -1266,13 +1275,13 @@ def model(transmitter, receiver):
     show_phase_shift_plots(np.rad2deg(phase_shifts), "Required Phase Shifts", save_plot=save_results,
                            results_directory_path=results_directory_path, subplot_position=(3, 2, 1))
     show_phase_shift_plots(np.rad2deg(real_phase_shifts), "Real Phase Shifts", save_plot=save_results,
-                           results_directory_path=results_directory_path, subplot_position=(3, 2, 2))
+                           results_directory_path=results_directory_path, subplot_position=(3, 2, 3))
     draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts,
-                                 subplot_position=(3, 2, 3))
+                                 room_sizes=room_sizes, subplot_position=(3, 2, (2, 4)))
     plot_power_graph(transmitted_power, received_powers, save_plot=save_results,
-                     results_directory_path=results_directory_path, subplot_position=(3, 2, 4))
+                     results_directory_path=results_directory_path, subplot_position=(3, 2, 5))
 
-    output1 = '\n'.join([
+    output = '\n'.join([
         f"Transmitter Location: {transmitter}",
         f"Receiver Location: {receiver}",
         f"Surface Height: {round(surface_height * 1e2, 2)} cm",
@@ -1281,9 +1290,6 @@ def model(transmitter, receiver):
         f"Average LOS distance between emitter and surface: {average_transmitter_surface_distance} m",
         f"Average LOS distance between surface and receiver: {average_surface_receiver_distance} m",
         f"Average NLOS distance between emitter and receiver through surface: {average_total_distance} m",
-    ])
-
-    output2 = '\n'.join([
         f"Transmitted power (in Watts): {transmitted_power:.2e} W",
         f"Transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm",
         f"Received Power (in Watts): {received_power:.2e} W",
@@ -1292,9 +1298,7 @@ def model(transmitter, receiver):
         f"Number of elements with correct reflection: {round(accurate_elements_percentage * successful_reflections.size)}/{successful_reflections.size}",
         f"Elements with correct reflection percentage: {round(accurate_elements_percentage * 100, 2)}%",
     ])
-
-    plot_text(output1, subplot_position=(3, 2, 5))
-    plot_text(output2, subplot_position=(3, 2, 6))
+    plot_text(output, subplot_position=(3, 2, 6))
 
     plt.tight_layout()
 
@@ -1303,16 +1307,22 @@ def main():
     transmitter = np.array([-1.73, 0.15, 3])  # Position of the transmitter
     receiver = np.array([2.27, 0.15, 3])  # Position of the receiver
 
+    # Room size 3D coordinates
+    x_coord_min, x_coord_max = -5, 7
+    y_coord_min, y_coord_max = -1.5, 1.5
+    z_coord_min, z_coord_max = 0, 12
+    room_sizes = [x_coord_min, x_coord_max, y_coord_min, y_coord_max, z_coord_min, z_coord_max]
+
     plt.figure(figsize=(17, 9))
     # plt.figure(figsize=(13, 7))
 
     while True:
-        model(transmitter, receiver)
+        model(transmitter, receiver, room_sizes)
         plt.draw()
         plt.pause(1)
 
-        transmitter = coordinates_update(transmitter)
-        receiver = coordinates_update(receiver)
+        transmitter = coordinates_update(transmitter, room_sizes=room_sizes)
+        receiver = coordinates_update(receiver, room_sizes=room_sizes)
 
 
 if __name__ == "__main__":

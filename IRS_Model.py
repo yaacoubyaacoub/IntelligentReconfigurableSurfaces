@@ -913,7 +913,8 @@ def show_phase_shift_plots(phase_shifts, title, save_plot=False, results_directo
         plt.savefig(os.path.join(results_directory_path, f"{title}.png"))
 
 
-def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phi_matrix):
+def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phi_matrix,
+                                 room_sizes=None):
     """
     Drawing the surface the transmitter the receiver as a dot. and show the reflection path
     :param transmitter: the coordinates of the transmitter
@@ -924,6 +925,9 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
            (spacing between elements is the same in both directions)
     :param phi_matrix: 2D phase shift matrix resembling the metasurface where every entry of this matrix represents
                        the phase shift realized by the corresponding element of the surface.
+    :param room_sizes: List of the form [x_coord_min, x_coord_max, y_coord_min, y_coord_max, z_coord_min, z_coord_max]
+                       defining the 3D sizes of the room using 3D coordinates relative to the position of the
+                       metasurface which start at position (0, 0, 0)
     """
     phi_matrix_deg = np.rad2deg(phi_matrix)
 
@@ -972,19 +976,25 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
             label='Normal Vector')
 
     # Set legend
-    ax.legend()
+    ax.legend(loc='upper left')
+
+    # Set title
+    plt.title("IRS Reflection Model")
 
     # Set axis labels and plot limits
     ax.set_xlabel('X-axis')
     ax.set_ylabel('Y-axis')
     ax.set_zlabel('Z-axis')
 
-    # Set x-axis limits
-    ax.set_xlim(-5, 7)
-    ax.set_ylim(-1.5, 1.5)
-    ax.set_zlim(0, 12)
-
-    # plt.show()
+    # Set axis limits (Room Size)
+    if room_sizes is not None:
+        # Room size 3D coordinates
+        x_coord_min, x_coord_max = room_sizes[0], room_sizes[1]
+        y_coord_min, y_coord_max = room_sizes[2], room_sizes[3]
+        z_coord_min, z_coord_max = room_sizes[4], room_sizes[5]
+        ax.set_xlim(x_coord_min, x_coord_max)
+        ax.set_ylim(y_coord_min, y_coord_max)
+        ax.set_zlim(z_coord_min, z_coord_max)
 
 
 def main():
@@ -1211,10 +1221,17 @@ def main():
                                results_directory_path=results_directory_path)
         show_phase_shift_plots(np.rad2deg(real_phase_shifts), "Real Phase Shifts", save_plot=save_results,
                                results_directory_path=results_directory_path)
-        # show_phase_shift_plots(np.rad2deg(np.mod(phase_shifts - real_phase_shifts + np.pi, 2 * np.pi) - np.pi), "Difference")
-        draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts)
         plot_power_graph(transmitted_power, received_powers, save_plot=save_results,
                          results_directory_path=results_directory_path)
+
+        # Room size 3D coordinates
+        x_coord_min, x_coord_max = -5, 7
+        y_coord_min, y_coord_max = -1.5, 1.5
+        z_coord_min, z_coord_max = 0, 12
+        room_sizes = [x_coord_min, x_coord_max, y_coord_min, y_coord_max, z_coord_min, z_coord_max]
+
+        draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts,
+                                     room_sizes=room_sizes)
 
         plt.show()
 
