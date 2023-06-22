@@ -1311,6 +1311,8 @@ def model(transmitter, receiver, room_sizes):
 def main():
     transmitter = np.array([-1.73, 0.15, 3])  # Position of the transmitter
     receiver = np.array([2.27, 0.15, 3])  # Position of the receiver
+    # transmitter = np.array([-4, 0.15, 3])  # Position of the transmitter
+    # receiver = np.array([6, 0.15, 8])  # Position of the receiver
 
     # Room size 3D coordinates
     x_coord_min, x_coord_max = -5, 7
@@ -1318,8 +1320,9 @@ def main():
     z_coord_min, z_coord_max = 0, 12
     room_sizes = [x_coord_min, x_coord_max, y_coord_min, y_coord_max, z_coord_min, z_coord_max]
 
-    plt.figure(figsize=(17, 9))
-    # plt.figure(figsize=(13, 7))
+    # plt.figure(figsize=(17, 9))
+    plt.figure()
+    plt.get_current_fig_manager().window.showMaximized()
 
     while True:
         model(transmitter, receiver, room_sizes)
