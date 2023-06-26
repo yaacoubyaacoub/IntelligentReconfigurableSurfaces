@@ -1069,7 +1069,7 @@ def model(transmitter, receiver, room_sizes):
     wave_number = 2 * np.pi / wavelength
     incident_amplitude = 0.1
     incident_phase = math.radians(30)
-    # incident_wave_n = incident_amplitude * np.cos(w * t + incident_phase)
+    # incident_wave_n = incident_amplitude * np.cos(angular_frequency * t + incident_phase)
 
     ni = 1  # Refractive index
 
@@ -1131,9 +1131,26 @@ def model(transmitter, receiver, room_sizes):
                                                                                           real_theta_r, real_phi_r)
 
     # Calculate the received power
-    received_powers, received_power = power_received(wavelength, wave_number, incident_amplitude, incident_phase, ni,
-                                                     real_reflection_coefficients_array, rays_distances,
-                                                     successful_reflections)
+    received_powers, received_power_no_noise = power_received(wavelength, wave_number, incident_amplitude,
+                                                              incident_phase, ni, real_reflection_coefficients_array,
+                                                              rays_distances, successful_reflections)
+
+    # Adding the noise to the received signal
+    t_max = 100 * 1 / frequency  # Simulated time
+    fs = 100 * frequency  # Sampling frequency
+    t = np.linspace(0, t_max, int(t_max * fs))
+
+    # Adding channel Noise (AWGN)
+    mean = 0  # Noise mean
+    std = 5e-6  # Noise standard deviation
+    noise = np.random.normal(mean, std, size=len(t))
+    noise_power = np.mean(np.power(noise, 2))
+
+    received_amplitude = math.sqrt(2 * received_power_no_noise)
+    received_signal_without_noise = received_amplitude * np.cos(angular_frequency * t)
+
+    received_signal = received_signal_without_noise + noise
+    received_power = np.mean(np.power(received_signal, 2))
 
     # Calculate the required varactor bias voltages to achieve the required capacitance
     corresponding_varactor_voltages = required_varactor_bias_voltages(capacitance_matrix)
@@ -1144,9 +1161,17 @@ def model(transmitter, receiver, room_sizes):
     original_snells_law_theta_i = find_snells_angle(transmitter, receiver, np.array([0, 0, 1]))
 
     # calculate the power that could have been received by the receiver antenna without the metasurface
-    received_power_no_intelligent_surface = power_without_intelligent_surface(transmitted_power, wavelength,
-                                                                              wave_number, ni, average_total_distance,
-                                                                              original_snells_law_theta_i, 5)
+    received_power_no_intelligent_surface_no_noise = power_without_intelligent_surface(transmitted_power, wavelength,
+                                                                                       wave_number, ni,
+                                                                                       average_total_distance,
+                                                                                       original_snells_law_theta_i, 5)
+
+    received_amplitude_no_intelligent_surface = math.sqrt(2 * received_power_no_intelligent_surface_no_noise)
+    received_signal_no_intelligent_surface_no_noise = received_amplitude_no_intelligent_surface * np.cos(
+        angular_frequency * t)
+
+    received_signal_no_intelligent_surface = received_signal_no_intelligent_surface_no_noise + noise
+    received_power_no_intelligent_surface = np.mean(np.power(received_signal_no_intelligent_surface, 2))
 
     results_directory_path = None
     if save_results:
@@ -1195,7 +1220,7 @@ def model(transmitter, receiver, room_sizes):
         results_file.write(
             f"Original Snell's law angle (in degrees): {np.round(np.degrees(original_snells_law_theta_i), 2)}°\n")
 
-        if received_power_no_intelligent_surface != 0:
+        if received_power_no_intelligent_surface_no_noise != 0:
             results_file.write(
                 f"Received Power without IRS (in Watts): {received_power_no_intelligent_surface:.2e} W\n")
             results_file.write(
@@ -1243,6 +1268,10 @@ def model(transmitter, receiver, room_sizes):
         # print(f"Received Power (in milliWatts): {round(received_power * 1e3, 2)} mW")
         print(f"Received Power (in Watts): {received_power:.2e} W")
         print(f"Received Power (in dBm): {round(10 * math.log10(received_power / 1e-3), 2)} dBm")
+        print(f"Noise Power: {noise_power:.2e} W")
+        print(f"Noise Power (in dBm): {round(10 * math.log10(noise_power / 1e-3), 2)} dBm")
+        print(f"Signal to Noise ratio (SNR): {(received_power / noise_power):.2e}")
+        print(f"Signal to Noise ratio (SNR) (in dB): {round(10 * math.log10(received_power / noise_power), 2)} dB")
         print(f"Percentage Received/Transmitted Power: {((received_power / transmitted_power) * 100):.2e}%")
 
         print("Number of elements with correct reflection: "
@@ -1250,11 +1279,15 @@ def model(transmitter, receiver, room_sizes):
         print(f"Elements with correct reflection percentage: {round(accurate_elements_percentage * 100, 2)}%")
 
         print(f"Original Snell's law angle (in degrees): {np.round(np.degrees(original_snells_law_theta_i), 2)}°")
-        print(f"Received Power without IRS (in Watts): {received_power_no_intelligent_surface:.2e} W")
-        if received_power_no_intelligent_surface != 0:
+        if received_power_no_intelligent_surface_no_noise != 0:
+            print(f"Received Power without IRS (in Watts): {received_power_no_intelligent_surface:.2e} W")
             print(
                 f"Received Power without IRS (in dBm): "
                 f"{round(10 * math.log10(received_power_no_intelligent_surface / 1e-3), 2)} dBm")
+            print(
+                f"Signal to Noise ratio (SNR) without IRS: {(received_power_no_intelligent_surface / noise_power):.2e}")
+            print(
+                f"Signal to Noise ratio (SNR) without IRS (in dB):  = {round(10 * math.log10(received_power_no_intelligent_surface / noise_power), 2)} dB")
             print(
                 f"Percentage Received/Transmitted Power without IRS: "
                 f"{((received_power_no_intelligent_surface / transmitted_power) * 100):.2e}%")
@@ -1299,6 +1332,8 @@ def model(transmitter, receiver, room_sizes):
         f"Transmitted power (in dBm): {round(10 * np.log10(transmitted_power / 1e-3), 2)} dBm",
         f"Received Power (in Watts): {received_power:.2e} W",
         f"Received Power (in dBm): {round(10 * math.log10(received_power / 1e-3), 2)} dBm",
+        f"Noise Power (in dBm): {round(10 * math.log10(noise_power / 1e-3), 2)} dBm",
+        f"Signal to Noise ratio (SNR) (in dB): {round(10 * math.log10(received_power / noise_power), 2)} dB",
         f"Percentage Received/Transmitted Power: {((received_power / transmitted_power) * 100):.2e}%",
         f"Number of elements with correct reflection: {round(accurate_elements_percentage * successful_reflections.size)}/{successful_reflections.size}",
         f"Elements with correct reflection percentage: {round(accurate_elements_percentage * 100, 2)}%",
