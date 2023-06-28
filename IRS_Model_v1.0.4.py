@@ -225,7 +225,7 @@ def elements_coordinates(surface_size, element_size, element_spacing):
     """
     Calculates the surface elements coordinates based on their numbers, their sizes and their spacings.
     :param surface_size: number of elements in both x and y directions of the surface (y_n, x_n)
-    :param element_size: size of each edge of a square element
+    :param element_size: (size_x, size_y) the width and height of a single element
     :param element_spacing: spacing between 2 elements in both x and y directions
            (spacing between elements is the same in both directions)
     :return: elements_coordinates_array: array containing the coordinates of each element of the surface based on
@@ -233,8 +233,8 @@ def elements_coordinates(surface_size, element_size, element_spacing):
     """
     y_indices, x_indices = np.meshgrid(np.arange(surface_size[0]), np.arange(surface_size[1]), indexing='ij')
 
-    x_values = (element_size / 2) + (x_indices * element_spacing) + (x_indices * element_size)
-    y_values = (element_size / 2) + (y_indices * element_spacing) + (y_indices * element_size)
+    x_values = (element_size[1] / 2) + (x_indices * element_spacing) + (x_indices * element_size[1])
+    y_values = (element_size[0] / 2) + (y_indices * element_spacing) + (y_indices * element_size[0])
     z_values = np.zeros_like(x_values)
 
     elements_coordinates_array = np.stack((x_values, y_values, z_values), axis=2)
@@ -306,7 +306,7 @@ def calculate_angles(transmitter, receiver, surface_size, element_size, element_
     :param transmitter: the coordinates of the transmitter
     :param receiver: the coordinates of the receiver
     :param surface_size: number of elements in both x and y directions of the surface (y_n, x_n)
-    :param element_size: size of each edge of a square element
+    :param element_size: (size_x, size_y) the width and height of a single element
     :param element_spacing: spacing between 2 elements in both x and y directions
            (spacing between elements is the same in both directions)
     :return: theta_i: array of incidence angles.
@@ -400,11 +400,11 @@ def calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta_x, delta_y):
     :param delta_x: the difference between an element and the next one in the x direction, taken between the middle of
                     two adjacent elements. element sizes and spacing are the same between every two adjacent elements
                     in the x direction, so delta_x is uniform.
-                    delta_x = element_size + element_spacing
+                    delta_x = element_size_x + element_spacing
     :param delta_y: the difference between an element and the next one in the y direction, taken between the middle of
                     two adjacent elements. element sizes and spacing are the same between every two adjacent elements
                     in the y direction, so delta_y is uniform.
-                    delta_y = element_size + element_spacing
+                    delta_y = element_size_y + element_spacing
     :return: phase_shifts: 2D array resembling the metasurface where every entry of this matrix represents the
              phase shift required by the corresponding element of the surface.
     """
@@ -506,11 +506,11 @@ def calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta_x, delta_y):
     :param delta_x: the difference between an element and the next one in the x direction, taken between the middle of
                     two adjacent elements. element sizes and spacing are the same between every two adjacent elements
                     in the x direction, so delta_x is uniform.
-                    delta_x = element_size + element_spacing
+                    delta_x = element_size_x + element_spacing
     :param delta_y: the difference between an element and the next one in the y direction, taken between the middle of
                     two adjacent elements. element sizes and spacing are the same between every two adjacent elements
                     in the y direction, so delta_y is uniform.
-                    delta_y = element_size + element_spacing
+                    delta_y = element_size_y + element_spacing
     :return: phase_shifts: 2D array resembling the metasurface where every entry of this matrix represents the
              phase shift required by the corresponding element of the surface.
     """
@@ -628,11 +628,11 @@ def calculate_real_reflected_angles(theta_i, phase_shifts, delta_x, delta_y, wav
     :param delta_x: the difference between an element and the next one in the x direction, taken between the middle of
                     two adjacent elements. element sizes and spacing are the same between every two adjacent elements
                     in the x direction, so delta_x is uniform.
-                    delta_x = element_size + element_spacing
+                    delta_x = element_size_x + element_spacing
     :param delta_y: the difference between an element and the next one in the y direction, taken between the middle of
                     two adjacent elements. element sizes and spacing are the same between every two adjacent elements
                     in the y direction, so delta_y is uniform.
-                    delta_y = element_size + element_spacing
+                    delta_y = element_size_y + element_spacing
     :param wave_number: the number of complete wave cycles of an electromagnetic field that exist in one meter.
                         k0=2π/λ
     :param ni: index of refraction of the medium in which the reflection is taking place
@@ -933,7 +933,7 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
     :param transmitter: the coordinates of the transmitter
     :param receiver: the coordinates of the receiver
     :param surface_size: number of elements in both x and y directions of the surface (y_n, x_n)
-    :param element_size: size of each edge of a square element
+    :param element_size: (size_x, size_y) the width and height of a single element
     :param element_spacing: spacing between 2 elements in both x and y directions
            (spacing between elements is the same in both directions)
     :param phi_matrix: 2D phase shift matrix resembling the metasurface where every entry of this matrix represents
@@ -974,8 +974,8 @@ def draw_incident_reflected_wave(transmitter, receiver, surface_size, element_si
 
     # Calculate the middle of the surface
     surface_middle = np.array([
-        ((surface_size[1] * element_size) + ((surface_size[1] - 1) * element_spacing)) / 2,
-        ((surface_size[0] * element_size) + ((surface_size[0] - 1) * element_spacing)) / 2,
+        ((surface_size[1] * element_size[1]) + ((surface_size[1] - 1) * element_spacing)) / 2,
+        ((surface_size[0] * element_size[0]) + ((surface_size[0] - 1) * element_spacing)) / 2,
         0
     ])
 
@@ -1079,6 +1079,10 @@ def model(transmitter, receiver, room_sizes):
     # L1_value = 2.5e-9
     # L2_value = 0.7e-9
     # capacitance_range = np.arange(0.25e-12, 6e-12, 0.01e-12)
+    # for f = 5GHz varactor components values
+    # L1_value = 0.65e-9
+    # L2_value = 0.5e-9
+    # capacitance_range = np.arange(0.01e-12, 2e-12, 0.001e-12)
     # for f = 10GHz varactor components values
     L1_value = 0.35e-9
     L2_value = 0.25e-9
@@ -1087,16 +1091,18 @@ def model(transmitter, receiver, room_sizes):
     # Metasurface Parameters
     surface_size = (20, 55)  # Metasurface dimensions (M, N)
     # surface_size = (50, 50)  # Metasurface dimensions (M, N)
-    element_size = wavelength / 4
     element_spacing = wavelength / 4  # Element spacing in x and y
-    delta = element_size + element_spacing
+    element_size_x = wavelength / 4
+    element_size_y = wavelength / 4
+    delta_x = element_size_x + element_spacing
+    delta_y = element_size_y + element_spacing
 
-    surface_height = (surface_size[0] * element_size) + ((surface_size[0] - 1) * element_spacing)
-    surface_width = (surface_size[1] * element_size) + ((surface_size[0] - 1) * element_spacing)
+    surface_height = (surface_size[0] * element_size_y) + ((surface_size[0] - 1) * element_spacing)
+    surface_width = (surface_size[1] * element_size_x) + ((surface_size[0] - 1) * element_spacing)
     surface_area = surface_height * surface_width
 
     # Calculates surface elements coordinates
-    elements_coordinates_array = elements_coordinates(surface_size, element_size, element_spacing)
+    elements_coordinates_array = elements_coordinates(surface_size, (element_size_x, element_size_y), element_spacing)
 
     # Calculate Incident and Reflected vectors
     incident_vectors, incidence_distances, reflected_vectors, reflection_distances = calculates_incident_reflected_vectors(
@@ -1108,10 +1114,11 @@ def model(transmitter, receiver, room_sizes):
         = calculate_wave_travelled_distances(incidence_distances, reflection_distances)
 
     # calculate the phase shifts needed
-    theta_i, theta_r, phi_r = calculate_angles(transmitter, receiver, surface_size, element_size, element_spacing)
+    theta_i, theta_r, phi_r = calculate_angles(transmitter, receiver, surface_size, (element_size_x, element_size_y),
+                                               element_spacing)
     dphi_dx, dphi_dy = calculate_dphi_dx_dy(theta_i, theta_r, phi_r, wave_number, ni)
     # phase_shifts = calculate_phase_shifts_from_gradients(dphi_dx, dphi_dy, delta, delta)
-    phase_shifts = calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta, delta)
+    phase_shifts = calculate_phase_shifts_from_gradients1(dphi_dx, dphi_dy, delta_x, delta_y)
 
     # Estimate the capacitance of each element of the surface to achieve the required phase shift
     capacitance_matrix = calculate_capacitance_matrix(R_value, L1_value, L2_value, capacitance_range, phase_shifts,
@@ -1121,7 +1128,7 @@ def model(transmitter, receiver, room_sizes):
                                                                                         capacitance_matrix,
                                                                                         angular_frequency)
     # Calculate the real reflection angles
-    real_theta_r, real_phi_r = calculate_real_reflected_angles(theta_i, real_phase_shifts, delta, delta,
+    real_theta_r, real_phi_r = calculate_real_reflected_angles(theta_i, real_phase_shifts, delta_x, delta_y,
                                                                wave_number, ni)
 
     # compute the successful reflections matrix
@@ -1184,7 +1191,8 @@ def model(transmitter, receiver, room_sizes):
         results_file.write(f"Incident Signal frequency: {frequency * 1e-9} GHz\n")
         results_file.write(f"Incident Signal Wavelength: {round(wavelength * 1e3, 3)} mm\n")
         results_file.write(f"Surface Number of Elements: {surface_size}\n")
-        results_file.write(f"Surface Elements Sizes: {round(element_size * 1e3, 3)} mm\n")
+        results_file.write(
+            f"Surface Elements Sizes (in mm): ({round(element_size_x * 1e3, 3)}, {round(element_size_y * 1e3, 3)})\n")
         results_file.write(f"Surface Elements spacings: {round(element_spacing * 1e3, 3)} mm\n")
         results_file.write(f"Surface Height: {round(surface_height * 1e2, 2)} cm\n")
         results_file.write(f"Surface Width: {round(surface_width * 1e2, 2)} cm\n")
@@ -1234,13 +1242,13 @@ def model(transmitter, receiver, room_sizes):
         results_file.close()
 
         np.savetxt(os.path.join(results_directory_path, "required_phase_shifts(in degrees).csv"),
-                   np.rad2deg(phase_shifts), delimiter=",")
+                   np.rad2deg(phase_shifts), delimiter=",", fmt="%.2f")
         np.savetxt(os.path.join(results_directory_path, "real_phase_shifts(in degrees).csv"),
-                   np.rad2deg(real_phase_shifts), delimiter=",")
+                   np.rad2deg(real_phase_shifts), delimiter=",", fmt="%.2f")
         np.savetxt(os.path.join(results_directory_path, "varactors_capacitance_matrix(in picoFarad).csv"),
-                   np.round(np.multiply(capacitance_matrix, 1e12), 2), delimiter=",")
+                   np.round(np.multiply(capacitance_matrix, 1e12), 2), delimiter=",", fmt="%.2f")
         np.savetxt(os.path.join(results_directory_path, "corresponding_varactor_voltages(in Volts).csv"),
-                   corresponding_varactor_voltages, delimiter=",")
+                   corresponding_varactor_voltages, delimiter=",", fmt="%.2f")
         print("Results Saved.\n")
 
     if print_results:
@@ -1309,8 +1317,8 @@ def model(transmitter, receiver, room_sizes):
                            results_directory_path=results_directory_path, subplot_position=(3, 2, 1))
     show_phase_shift_plots(np.rad2deg(real_phase_shifts), "Real Phase Shifts", save_plot=save_results,
                            results_directory_path=results_directory_path, subplot_position=(3, 2, 3))
-    draw_incident_reflected_wave(transmitter, receiver, surface_size, element_size, element_spacing, phase_shifts,
-                                 room_sizes=room_sizes, subplot_position=(3, 2, (2, 4)))
+    draw_incident_reflected_wave(transmitter, receiver, surface_size, (element_size_x, element_size_y), element_spacing,
+                                 phase_shifts, room_sizes=room_sizes, subplot_position=(3, 2, (2, 4)))
     plot_power_graph(transmitted_power, received_powers, save_plot=save_results,
                      results_directory_path=results_directory_path, subplot_position=(3, 2, 5))
 

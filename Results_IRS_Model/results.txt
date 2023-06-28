@@ -3,7 +3,7 @@ Receiver Location: [2.27 0.15 3.  ]
 Incident Signal frequency: 10.0 GHz
 Incident Signal Wavelength: 29.979 mm
 Surface Number of Elements: (20, 55)
-Surface Elements Sizes: 7.495 mm
+Surface Elements Sizes (in mm): (7.495, 7.495)
 Surface Elements spacings: 7.495 mm
 Surface Height: 29.23 cm
 Surface Width: 55.46 cm
@@ -24,6 +24,6 @@ Received Power (in dBm): -9.79 dBm
 Number of elements with correct reflection: 965/1100
 Elements with correct reflection percentage: 87.73%
 Original Snell's law angle (in degrees): 33.66°
-Received Power without IRS (in Watts): 1.08e-10 W
-Received Power without IRS (in dBm): -69.68 dBm
-Additional received power with IRS: 59.89 dBm
+Received Power without IRS (in Watts): 1.33e-10 W
+Received Power without IRS (in dBm): -68.78 dBm
+Additional received power with IRS: 58.99 dBm

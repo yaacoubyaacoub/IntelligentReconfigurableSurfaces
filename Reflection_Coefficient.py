@@ -67,11 +67,17 @@ def main():
     # frequency = 2.4e9  # Frequency in Hz
     # c_values = np.arange(0.01e-12, 4e-12, 0.01e-12)
 
+    # 5GHz frequency
+    L1_value = 0.65e-9
+    L2_value = 0.5e-9
+    frequency = 5e9  # Frequency in Hz
+    c_values = np.arange(0.01e-12, 2e-12, 0.01e-12)
+
     # 10GHz frequency
-    L1_value = 0.35e-9
-    L2_value = 0.25e-9
-    frequency = 10e9  # Frequency in Hz
-    c_values = np.arange(0.2e-12, 0.8e-12, 0.001e-12)
+    # L1_value = 0.35e-9
+    # L2_value = 0.25e-9
+    # frequency = 10e9  # Frequency in Hz
+    # c_values = np.arange(0.2e-12, 0.8e-12, 0.001e-12)
 
     # 20GHz frequency
     # L1_value = 0.2e-9
